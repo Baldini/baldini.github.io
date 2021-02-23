@@ -1,0 +1,1 @@
+window.TEXT_SEARCH_DATA={'posts':[{'title':"Serialização com protobuf",'url':"/2019/05/30/protobuf-serialization.html"},{'title':"Hello World",'url':"/2021/02/12/hello-world.html"},{'title':"Injeção de dependência",'url':"/2021/02/18/dependency-injection.html"}]};

@@ -1,0 +1,281 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.2.0">Jekyll</generator><link href="https://www.baldini.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.baldini.io/" rel="alternate" type="text/html" hreflang="en" /><updated>2021-02-23T20:45:12-03:00</updated><id>https://www.baldini.io/feed.xml</id><title type="html">Guilherme Baldini</title><subtitle>Aleatoriedades caóticas do limbo imaginativo de um programador
+</subtitle><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><entry><title type="html">Injeção de dependência</title><link href="https://www.baldini.io/2021/02/18/dependency-injection.html" rel="alternate" type="text/html" title="Injeção de dependência" /><published>2021-02-18T00:00:00-03:00</published><updated>2021-02-18T00:00:00-03:00</updated><id>https://www.baldini.io/2021/02/18/dependency-injection</id><content type="html" xml:base="https://www.baldini.io/2021/02/18/dependency-injection.html">&lt;p&gt;A ideia da injeção de dependência é manter o desacoplamento entre módulos do sistema, com a injeção as classes de dependências não são instanciadas diretamente na classe utilizada, mas sim em uma estrutura responsável por isso, um container, isso nos ajuda a controlar essas instancias de forma mais simples e performática, já que o .NET faz isto para nós e facilitando os testes unitários por trabalhar com interfaces, assim facilitando os mocks.&lt;/p&gt;
+
+&lt;p&gt;Ou seja, onde antes fazíamos isso:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bar&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Agora faremos&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;Foo&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bar&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Foo&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Bar&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bar&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Bar&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Bom, vamos explicar como funciona por exemplo&lt;/p&gt;
+
+&lt;h2 id=&quot;exemplos&quot;&gt;Exemplos&lt;/h2&gt;
+
+&lt;p&gt;Para exemplo vamos criar nossa classe a ser injetada:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyRepository&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Guid&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyGuid&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyInt&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MyRepository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;MyGuid&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;NewGuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;PlusOne&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;MyInt&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;iremos criar uma classe que irá usar nosso ~repository~&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyService&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;readonly&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MyService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;PlusOne&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;PlusOne&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;E nosso controller&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ApiController&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Route&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;[controller]&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MyController&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ControllerBase&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;readonly&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;readonly&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyService&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MyController&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MyService&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;myService&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;myService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HttpGet&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;Get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;PlusOne&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;myService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;PlusOne&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;repository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyInt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;scoped&quot;&gt;Scoped&lt;/h3&gt;
+
+&lt;p&gt;Classes scoped são instanciadas a cada novo escopo solicitado, no caso do ASP.NET Core, cada chamada HTTP recebida.&lt;/p&gt;
+
+&lt;p&gt;São ótimas opções para classes que mantem estado e como mantem uma instancia por chamada é mais difícil ter problemas de memória por causa delas, claro que se o código dentro dela tiver problemas não tem muito pra onde fugir.&lt;/p&gt;
+
+&lt;h4 id=&quot;code&quot;&gt;Code&lt;/h4&gt;
+
+&lt;p&gt;Vamos injetar nosso “Repository” e “Service” no nosso startup&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ConfigureServices&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IServiceCollection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddScoped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddScoped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;AddControllers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Rodando o projeto e chamando nosso endpoint podemos perceber que a instancia da classe MyRepository é compartilhada entre o MyController e o MyService, já que ambas estão sendo utilizadas dentro no mesmo escopo, uma chamada HTTP.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-01.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-02.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Ambos os GUID são iguais e, como chamamos o método PluOne() 2 vezes, o nosso MyInt é 2.&lt;/p&gt;
+
+&lt;h3 id=&quot;transient&quot;&gt;Transient&lt;/h3&gt;
+
+&lt;p&gt;Classes Transient são instanciadas todas as vezes que são solicitadas.&lt;/p&gt;
+
+&lt;p&gt;Bom para classes leves e sem estado, mas podem causar aumento do uso de recursos e problema de memória.&lt;/p&gt;
+
+&lt;h4 id=&quot;code-1&quot;&gt;Code&lt;/h4&gt;
+
+&lt;p&gt;Mudamos a injeção do nosso “Repository” para Transient&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ConfigureServices&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IServiceCollection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddTransient&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddScoped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;AddControllers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-03.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-04.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Podemos observar que os GUID são diferentes para cada classe e o valor do MyInt não é mantido, pois dentro do transient cada vez que é solicitada, a classe de repository é instanciada novamente.&lt;/p&gt;
+
+&lt;h3 id=&quot;singleton&quot;&gt;Singleton&lt;/h3&gt;
+
+&lt;p&gt;Classes Singleton são instanciadas na primeira vez que são solicitadas, toda nova vez que for solicitada vai ser enviado a mesma instancia.&lt;/p&gt;
+
+&lt;h4 id=&quot;code-2&quot;&gt;Code&lt;/h4&gt;
+
+&lt;p&gt;Mudamos a injeção do nosso “Repository” para singleton&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ConfigureServices&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IServiceCollection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddSingleton&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyRepository&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddScoped&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyService&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;AddControllers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-05.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-06.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Aqui o comportamento parece igual ao Scoped, mesmo GUID e o MyInt subindo para 2, mas se efetuarmos uma nova chamada teremos algumas mudanças… ou não.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-07.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2020/02/2021-02-18-dependency-injection-08.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Mesmo GUID da chamada anterior e o MyInt não resetou, já que classes Injetadas como Singleton só tem 1 instancia durante todo o ciclo de vida da aplicação, o que pode ser muito bom para classes que podem ser reutilizáveis em diversos pontos ou muito ruim causando memory leaks ou quebra de contextos entre chamadas.&lt;/p&gt;
+
+&lt;h2 id=&quot;bonus&quot;&gt;Bonus&lt;/h2&gt;
+
+&lt;h3 id=&quot;entity-framework-context&quot;&gt;Entity Framework Context&lt;/h3&gt;
+
+&lt;p&gt;Quando você está trabalhando com Banco de dados e injeção de dependências sempre fica a dúvida sobre qual usar, normalmente dentro da documentação da biblioteca que você está usando já vem indicando como é a melhor forma de cuidar da sua instancia de conexão mas caso esteja usando Entity Framework Core, já temos uma facilitada:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ConfigureServices&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IServiceCollection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddDbContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;UseSqlServer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;connectionString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;AddControllers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Com isso já temos a injeção do nosso Context e podemos receber ele em nossas classes mas podemos melhorar um pouco mais:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-c#&quot; data-lang=&quot;c#&quot;&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;ConfigureServices&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IServiceCollection&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;AddDbContextPool&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MyContext&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;options&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;options&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;UseSqlServer&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;connectionString&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;services&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;AddControllers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Com o AddDbContextPool, habilita um pool de instancias reutilizáveis do seu contexto, melhorando o desempenho e consumo de memória.&lt;/p&gt;</content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term=".NET" /><category term="dependency-injection" /><category term="ASPNET" /><summary type="html">A ideia da injeção de dependência é manter o desacoplamento entre módulos do sistema, com a injeção as classes de dependências não são instanciadas diretamente na classe utilizada, mas sim em uma estrutura responsável por isso, um container, isso nos ajuda a controlar essas instancias de forma mais simples e performática, já que o .NET faz isto para nós e facilitando os testes unitários por trabalhar com interfaces, assim facilitando os mocks. Ou seja, onde antes fazíamos isso: public class Foo { private Bar bar { get; set; } public Foo() { this.bar = new Bar(); } } Agora faremos public class Foo { private Bar bar { get; set; } public Foo(Bar Bar) { this.bar = Bar; } } Bom, vamos explicar como funciona por exemplo Exemplos Para exemplo vamos criar nossa classe a ser injetada: public class MyRepository { public Guid MyGuid { get; set; } public int MyInt { get; set; } public MyRepository() { MyGuid = Guid.NewGuid(); } public void PlusOne() { MyInt += 1; } } iremos criar uma classe que irá usar nosso ~repository~ public class MyService { private readonly MyRepository repository; public MyService(MyRepository repository) { this.repository = repository; } public void PlusOne() { repository.PlusOne(); } } E nosso controller [ApiController] [Route(&quot;[controller]&quot;)] public class MyController : ControllerBase { private readonly MyRepository repository; private readonly MyService myService; public MyController(MyRepository repository, MyService myService) { this.repository = repository; this.myService = myService; } [HttpGet] public int Get() { repository.PlusOne(); myService.PlusOne(); return repository.MyInt; } } Scoped Classes scoped são instanciadas a cada novo escopo solicitado, no caso do ASP.NET Core, cada chamada HTTP recebida. São ótimas opções para classes que mantem estado e como mantem uma instancia por chamada é mais difícil ter problemas de memória por causa delas, claro que se o código dentro dela tiver problemas não tem muito pra onde fugir. Code Vamos injetar nosso “Repository” e “Service” no nosso startup public void ConfigureServices(IServiceCollection services) { services.AddScoped&amp;lt;MyRepository&amp;gt;(); services.AddScoped&amp;lt;MyService&amp;gt;(); services.AddControllers(); } Rodando o projeto e chamando nosso endpoint podemos perceber que a instancia da classe MyRepository é compartilhada entre o MyController e o MyService, já que ambas estão sendo utilizadas dentro no mesmo escopo, uma chamada HTTP. Ambos os GUID são iguais e, como chamamos o método PluOne() 2 vezes, o nosso MyInt é 2. Transient Classes Transient são instanciadas todas as vezes que são solicitadas. Bom para classes leves e sem estado, mas podem causar aumento do uso de recursos e problema de memória. Code Mudamos a injeção do nosso “Repository” para Transient public void ConfigureServices(IServiceCollection services) { services.AddTransient&amp;lt;MyRepository&amp;gt;(); services.AddScoped&amp;lt;MyService&amp;gt;(); services.AddControllers(); } Podemos observar que os GUID são diferentes para cada classe e o valor do MyInt não é mantido, pois dentro do transient cada vez que é solicitada, a classe de repository é instanciada novamente. Singleton Classes Singleton são instanciadas na primeira vez que são solicitadas, toda nova vez que for solicitada vai ser enviado a mesma instancia. Code Mudamos a injeção do nosso “Repository” para singleton public void ConfigureServices(IServiceCollection services) { services.AddSingleton&amp;lt;MyRepository&amp;gt;(); services.AddScoped&amp;lt;MyService&amp;gt;(); services.AddControllers(); } Aqui o comportamento parece igual ao Scoped, mesmo GUID e o MyInt subindo para 2, mas se efetuarmos uma nova chamada teremos algumas mudanças… ou não. Mesmo GUID da chamada anterior e o MyInt não resetou, já que classes Injetadas como Singleton só tem 1 instancia durante todo o ciclo de vida da aplicação, o que pode ser muito bom para classes que podem ser reutilizáveis em diversos pontos ou muito ruim causando memory leaks ou quebra de contextos entre chamadas. Bonus Entity Framework Context Quando você está trabalhando com Banco de dados e injeção de dependências sempre fica a dúvida sobre qual usar, normalmente dentro da documentação da biblioteca que você está usando já vem indicando como é a melhor forma de cuidar da sua instancia de conexão mas caso esteja usando Entity Framework Core, já temos uma facilitada: public void ConfigureServices(IServiceCollection services) { services.AddDbContext&amp;lt;MyContext&amp;gt;(options =&amp;gt; options.UseSqlServer(connectionString)); services.AddControllers(); } Com isso já temos a injeção do nosso Context e podemos receber ele em nossas classes mas podemos melhorar um pouco mais: public void ConfigureServices(IServiceCollection services) { services.AddDbContextPool&amp;lt;MyContext&amp;gt;(options =&amp;gt; options.UseSqlServer(connectionString)); services.AddControllers(); } Com o AddDbContextPool, habilita um pool de instancias reutilizáveis do seu contexto, melhorando o desempenho e consumo de memória.</summary></entry><entry><title type="html">Hello World</title><link href="https://www.baldini.io/2021/02/12/hello-world.html" rel="alternate" type="text/html" title="Hello World" /><published>2021-02-12T00:00:00-03:00</published><updated>2021-02-12T00:00:00-03:00</updated><id>https://www.baldini.io/2021/02/12/hello-world</id><content type="html" xml:base="https://www.baldini.io/2021/02/12/hello-world.html">&lt;p&gt;Olá mundo, sempre precisamos começar com os clichês ¯_(ツ)_/¯&lt;/p&gt;
+
+&lt;p&gt;Me chamo Guilherme Baldini, tenho mais de 10 anos de experiencia escrevendo em umas línguas estranhas que no fim se tornam programas de computador, a ideia aqui é criar algo pra escrever o que estou aprendendo, coisas que acho interessante ou essenciais sobre tecnologia em geral.&lt;/p&gt;
+
+&lt;p&gt;Minha experiencia e foco sempre foi em .NET mas você vai ver coisas sobre Unity, Raspberry pi, ML, Python, Docker e qualquer outra coisa que eu inventar :)&lt;/p&gt;
+
+&lt;!--more--&gt;</content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term="Hello" /><category term="World" /><summary type="html">Olá mundo, sempre precisamos começar com os clichês ¯_(ツ)_/¯ Me chamo Guilherme Baldini, tenho mais de 10 anos de experiencia escrevendo em umas línguas estranhas que no fim se tornam programas de computador, a ideia aqui é criar algo pra escrever o que estou aprendendo, coisas que acho interessante ou essenciais sobre tecnologia em geral. Minha experiencia e foco sempre foi em .NET mas você vai ver coisas sobre Unity, Raspberry pi, ML, Python, Docker e qualquer outra coisa que eu inventar :)</summary></entry><entry><title type="html">Serialização com protobuf</title><link href="https://www.baldini.io/2019/05/30/protobuf-serialization.html" rel="alternate" type="text/html" title="Serialização com protobuf" /><published>2019-05-30T00:00:00-03:00</published><updated>2019-05-30T00:00:00-03:00</updated><id>https://www.baldini.io/2019/05/30/protobuf-serialization</id><content type="html" xml:base="https://www.baldini.io/2019/05/30/protobuf-serialization.html">&lt;p&gt;Este é um post escrito em 2019, o original foi escrito no &lt;a href=&quot;https://medium.com/@guibaldini/protobuf-dotnet-43f993ca9bdb&quot;&gt;Medium&lt;/a&gt; e passei para cá&lt;/p&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://developers.google.com/protocol-buffers/&quot;&gt;Protocol Buffers&lt;/a&gt; ou protobuf para os íntimos é um método de serialização de dados estruturados, criado pela Google para comunicação entre serviços internos, com ele você cria um arquivo de configuração, arquivo .proto, com sua estrutura de dados e importa na sua linguagem favorita e gerar suas classes de &lt;em&gt;Dados.&lt;/em&gt;&lt;/p&gt;
+
+&lt;script src=&quot;https://gist.github.com/Baldini/e28471a85240e1d7eabba22703cf1fbf.js&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;Nele definimos o tipo dos dados, as estruturas, obrigatoriedade, valores default, etc. Existe uma &lt;a href=&quot;https://developers.google.com/protocol-buffers/docs/proto&quot;&gt;documentação&lt;/a&gt; completa mas um ponto que devemos prestar atenção é que existe um numero único para cada campo, ele deve ser único dentro da sua estrutura e serve para identificação do campo dentro da formatação binária.&lt;/p&gt;
+
+&lt;h2 id=&quot;então-ele-é-igual-json-e-xml&quot;&gt;Então ele é igual Json e XML?&lt;/h2&gt;
+
+&lt;p&gt;Sim e não, ele é sim um tipo de serialização mas ele é mais completo, mais simples e mais leve.&lt;/p&gt;
+
+&lt;p&gt;Podemos importar o arquivo .Proto com um &lt;a href=&quot;https://www.nuget.org/packages/protobuf-net.Protogen&quot;&gt;utilitário&lt;/a&gt;, feito com .NET para gerar nossa classe de &lt;em&gt;Data.&lt;/em&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;dotnet tool install --global protobuf-net.Protogen --version 2.3.17
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Após instalado podemos executar o comando abaixo para gerar nosso código com qualquer arquivo .proto.&lt;/p&gt;
+
+&lt;div class=&quot;language-plaintext highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;protogen &amp;lt;File&amp;gt; --csharp\_out=&amp;lt;Output&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Ele irá gerar o código abaixo
+&lt;script src=&quot;https://gist.github.com/Baldini/8a9f8a3246a68f1c6ec0034ccb26ca58.js&quot;&gt;&lt;/script&gt;&lt;/p&gt;
+
+&lt;p&gt;Dica: Existe um &lt;a href=&quot;https://protogen.marcgravell.com&quot;&gt;site&lt;/a&gt; que faz exatamente esse processo, caso não queira instalar a global tool&lt;/p&gt;
+
+&lt;p&gt;Pra quem já utilizou &lt;em&gt;web services SOAP&lt;/em&gt;, isso se parece muito com o arquivo que é gerado com &lt;em&gt;WSDL&lt;/em&gt;, mas calma não morra do coração, não é isso, ele é só um arquivo de modelo, com isto você não consegue efetuar chamadas diretamente para o &lt;em&gt;webservice&lt;/em&gt;, e quando você olha com mais atenção vê que não tão feio quanto o gerado pelo &lt;em&gt;WSDL.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;Com isso podemos utilizar o pacote &lt;a href=&quot;https://www.nuget.org/packages/Google.Protobuf/&quot;&gt;Google.Protobuf&lt;/a&gt; e serializar de forma simples:
+&lt;script src=&quot;https://gist.github.com/Baldini/f2bd46ecc33846d3f9da0fa19e5c456f.js&quot;&gt;&lt;/script&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;protobuf-net&quot;&gt;Protobuf-net&lt;/h2&gt;
+
+&lt;p&gt;O &lt;a href=&quot;https://www.nuget.org/packages/protobuf-net&quot;&gt;protobuf-net&lt;/a&gt; é uma library criada para facilitar a utilização de protobuf em Dot Net, ele suporta tanto classes com Data Annotations, bem parecido com o antigo JsonProperty, quanto o arquivo .proto, eu gosto mais dele pois as classes ficam mais legíveis do que com o pacote do google, para o exemplo irei usar Data Annotation pra facilitar a minha vida ¯\_(ツ)_/¯.&lt;/p&gt;
+
+&lt;p&gt;Vou iniciar criando meus modelos, resolvi criar 2 tipos de modelos, um com somente uma propriedade do tipo Int, e outro com alguns campos a mais e o model mais simples, adiciono a Data Annotation &lt;em&gt;[ProtoContract]&lt;/em&gt; nas classes e os &lt;em&gt;[ProtoMember()]&lt;/em&gt; nas propriedades.&lt;/p&gt;
+
+&lt;script src=&quot;https://gist.github.com/Baldini/e74cd441f203fb97719d9d8ebe4110df.js&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;Como dar pra perceber, diferente de Json ou XML, não existe um nome para os campos, como por exemplo &lt;em&gt;[JsonProperty(“MyString”)]&lt;/em&gt;, ao invés disso cada campo tem um inteiro como identificador, que não pode se repetir na sua classe, sem esse Annotation o campo não será serializado.&lt;/p&gt;
+
+&lt;p&gt;Dica: ele não aceita números negativos e números menores ocupam menos espaço, não comece em 100000000 XD.&lt;/p&gt;
+
+&lt;h2 id=&quot;tá-é-só-isso&quot;&gt;Tá, é só isso?&lt;/h2&gt;
+
+&lt;p&gt;Não, mas vamos fazer o código de serialização em protobuf junto com um código de serialização em Json para vermos se realmente tem alguma diferença no desempenho, vou usar o &lt;a href=&quot;https://github.com/dotnet/BenchmarkDotNet&quot;&gt;Benchmark Dot Net&lt;/a&gt; pra me auxiliar e o &lt;a href=&quot;https://github.com/bchavez/Bogus&quot;&gt;Bogus&lt;/a&gt; para criar alguns dados fake.&lt;/p&gt;
+
+&lt;script src=&quot;https://gist.github.com/Baldini/928ea0bd66839fb4d0b4454f03b23150.js&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;Montei 4 tipos de testes, um para cada tipo de serialização, totalizando 8 sendo eles:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Serializar &lt;em&gt;SimpleClass;&lt;/em&gt;&lt;/li&gt;
+  &lt;li&gt;Serializar &lt;em&gt;ComplexClass;&lt;/em&gt;&lt;/li&gt;
+  &lt;li&gt;Serializar uma lista com 10 &lt;em&gt;ComplexClass;&lt;/em&gt;&lt;/li&gt;
+  &lt;li&gt;Serializar uma lista com 100 &lt;em&gt;ComplexClass.&lt;/em&gt;&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Bom então vamos modificar nosso método &lt;em&gt;Main&lt;/em&gt; e iniciar o teste&lt;/p&gt;
+
+&lt;script src=&quot;https://gist.github.com/Baldini/13c27f31d621f9cf693848e010ef1495.js&quot;&gt;&lt;/script&gt;
+
+&lt;p&gt;Fiz o &lt;em&gt;Build&lt;/em&gt; da aplicação em &lt;em&gt;release&lt;/em&gt; e executei-a por linha de comando, o resultado é este:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2019/05/2019-05-30-protobuf_01.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Resultado do Benchmark efetuado&lt;/p&gt;
+
+&lt;p&gt;Esse é um Benchmark bem simples mas podemos perceber diminuição alocação de memoria e tempo gasto na operação ,principalmente conforme ela vai aumentando a quantidade, são bem menores com o Protobuf-net, fiz alguns outros testes e usando a biblioteca do &lt;a href=&quot;https://www.nuget.org/packages/Google.Protobuf/&quot;&gt;Google&lt;/a&gt; você consegue ganhar mais um pouco de desempenho.&lt;/p&gt;
+
+&lt;p&gt;Existem alguns benchmarks mais completos na internet caso queira saber mais, por exemplo &lt;a href=&quot;https://auth0.com/blog/beating-json-performance-with-protobuf/&quot;&gt;este&lt;/a&gt; e &lt;a href=&quot;https://codeburst.io/json-vs-protocol-buffers-vs-flatbuffers-a4247f8bda6f&quot;&gt;este&lt;/a&gt; dentre outros&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2019/05/2019-05-30-protobuf_02.jpg&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;então-vou-usar-protobuf-pra-tudo&quot;&gt;Então vou usar protobuf pra tudo?&lt;/h2&gt;
+
+&lt;p&gt;Calma jovem padawan, não é para tudo que devemos usar, Json ainda é muito bom para os seguinte casos na minha opnião:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Você precisa que seus dados sejam legíveis para humanos;&lt;/li&gt;
+  &lt;li&gt;Você vai integra com algum cliente (afinal seu cliente pode não fazer ideia do que é protobuf);&lt;/li&gt;
+  &lt;li&gt;Seus dados são dinâmicos (não existe um schema);&lt;/li&gt;
+  &lt;li&gt;Sua aplicação que irá consumir os dados é em Javascript ou um Browser.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Mas para comunicação interna entre seus serviços, cache, filas e etc você pode usar protobuf sem problemas :D&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/assets/images/2019/05/2019-05-30-protobuf_03.png&quot; alt=&quot;image&quot; /&gt;&lt;/p&gt;
+
+&lt;!--more--&gt;</content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term=".NET" /><category term="protobuf" /><category term="serialização" /><summary type="html">Este é um post escrito em 2019, o original foi escrito no Medium e passei para cá Protocol Buffers ou protobuf para os íntimos é um método de serialização de dados estruturados, criado pela Google para comunicação entre serviços internos, com ele você cria um arquivo de configuração, arquivo .proto, com sua estrutura de dados e importa na sua linguagem favorita e gerar suas classes de Dados. Nele definimos o tipo dos dados, as estruturas, obrigatoriedade, valores default, etc. Existe uma documentação completa mas um ponto que devemos prestar atenção é que existe um numero único para cada campo, ele deve ser único dentro da sua estrutura e serve para identificação do campo dentro da formatação binária. Então ele é igual Json e XML? Sim e não, ele é sim um tipo de serialização mas ele é mais completo, mais simples e mais leve. Podemos importar o arquivo .Proto com um utilitário, feito com .NET para gerar nossa classe de Data. dotnet tool install --global protobuf-net.Protogen --version 2.3.17 Após instalado podemos executar o comando abaixo para gerar nosso código com qualquer arquivo .proto. protogen &amp;lt;File&amp;gt; --csharp\_out=&amp;lt;Output&amp;gt; Ele irá gerar o código abaixo Dica: Existe um site que faz exatamente esse processo, caso não queira instalar a global tool Pra quem já utilizou web services SOAP, isso se parece muito com o arquivo que é gerado com WSDL, mas calma não morra do coração, não é isso, ele é só um arquivo de modelo, com isto você não consegue efetuar chamadas diretamente para o webservice, e quando você olha com mais atenção vê que não tão feio quanto o gerado pelo WSDL. Com isso podemos utilizar o pacote Google.Protobuf e serializar de forma simples: Protobuf-net O protobuf-net é uma library criada para facilitar a utilização de protobuf em Dot Net, ele suporta tanto classes com Data Annotations, bem parecido com o antigo JsonProperty, quanto o arquivo .proto, eu gosto mais dele pois as classes ficam mais legíveis do que com o pacote do google, para o exemplo irei usar Data Annotation pra facilitar a minha vida ¯\_(ツ)_/¯. Vou iniciar criando meus modelos, resolvi criar 2 tipos de modelos, um com somente uma propriedade do tipo Int, e outro com alguns campos a mais e o model mais simples, adiciono a Data Annotation [ProtoContract] nas classes e os [ProtoMember()] nas propriedades. Como dar pra perceber, diferente de Json ou XML, não existe um nome para os campos, como por exemplo [JsonProperty(“MyString”)], ao invés disso cada campo tem um inteiro como identificador, que não pode se repetir na sua classe, sem esse Annotation o campo não será serializado. Dica: ele não aceita números negativos e números menores ocupam menos espaço, não comece em 100000000 XD. Tá, é só isso? Não, mas vamos fazer o código de serialização em protobuf junto com um código de serialização em Json para vermos se realmente tem alguma diferença no desempenho, vou usar o Benchmark Dot Net pra me auxiliar e o Bogus para criar alguns dados fake. Montei 4 tipos de testes, um para cada tipo de serialização, totalizando 8 sendo eles: Serializar SimpleClass; Serializar ComplexClass; Serializar uma lista com 10 ComplexClass; Serializar uma lista com 100 ComplexClass. Bom então vamos modificar nosso método Main e iniciar o teste Fiz o Build da aplicação em release e executei-a por linha de comando, o resultado é este: Resultado do Benchmark efetuado Esse é um Benchmark bem simples mas podemos perceber diminuição alocação de memoria e tempo gasto na operação ,principalmente conforme ela vai aumentando a quantidade, são bem menores com o Protobuf-net, fiz alguns outros testes e usando a biblioteca do Google você consegue ganhar mais um pouco de desempenho. Existem alguns benchmarks mais completos na internet caso queira saber mais, por exemplo este e este dentre outros Então vou usar protobuf pra tudo? Calma jovem padawan, não é para tudo que devemos usar, Json ainda é muito bom para os seguinte casos na minha opnião: Você precisa que seus dados sejam legíveis para humanos; Você vai integra com algum cliente (afinal seu cliente pode não fazer ideia do que é protobuf); Seus dados são dinâmicos (não existe um schema); Sua aplicação que irá consumir os dados é em Javascript ou um Browser. Mas para comunicação interna entre seus serviços, cache, filas e etc você pode usar protobuf sem problemas :D</summary></entry></feed>
