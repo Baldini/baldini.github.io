@@ -1,2 +1,2 @@
-# baldini.github.io
+# baldini.io
 Personal blog
