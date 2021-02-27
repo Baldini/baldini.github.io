@@ -24,11 +24,11 @@
 
   window.addEventListener('scroll', function (e) {
     var currentScroll = document.scrollingElement.scrollTop;
-    var disqus_target = $('#disqus_thread');
+    var disqus_target = document.getElementById('disqus_thread');
     var is_disqus_empty = document.getElementById('disqus_empty');
 
     if (is_disqus_empty && disqus_target && (currentScroll > (disqus_target
-        .offset().top - 1000))) {
+        .offsetTop - 1000))) {
       load_disqus();
     }
   }, false);
