@@ -121,9 +121,9 @@ public void ConfigureServices(IServiceCollection services)
 
 Rodando o projeto e chamando nosso endpoint podemos perceber que a instancia da classe MyRepository é compartilhada entre o MyController e o MyService, já que ambas estão sendo utilizadas dentro no mesmo escopo, uma chamada HTTP.
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-01.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-01.jpg)
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-02.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-02.jpg)
 
 Ambos os GUID são iguais e, como chamamos o método PluOne() 2 vezes, o nosso MyInt é 2.
 
@@ -146,9 +146,9 @@ public void ConfigureServices(IServiceCollection services)
 }
 {% endhighlight %}
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-03.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-03.jpg)
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-04.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-04.jpg)
 
 Podemos observar que os GUID são diferentes para cada classe e o valor do MyInt não é mantido, pois dentro do transient cada vez que é solicitada, a classe de repository é instanciada novamente.
 
@@ -168,15 +168,15 @@ public void ConfigureServices(IServiceCollection services)
 }
 {% endhighlight %}
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-05.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-05.jpg)
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-06.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-06.jpg)
 
 Aqui o comportamento parece igual ao Scoped, mesmo GUID e o MyInt subindo para 2, mas se efetuarmos uma nova chamada teremos algumas mudanças... ou não.
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-07.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-07.jpg)
 
-![image](/assets/images/2020/02/2021-02-18-dependency-injection-08.jpg)
+![image](/assets/images/2020/02/dependency-injection/dependency-injection-08.jpg)
 
 Mesmo GUID da chamada anterior e o MyInt não resetou, já que classes Injetadas como Singleton só tem 1 instancia durante todo o ciclo de vida da aplicação, o que pode ser muito bom para classes que podem ser reutilizáveis em diversos pontos ou muito ruim causando memory leaks ou quebra de contextos entre chamadas.
 
