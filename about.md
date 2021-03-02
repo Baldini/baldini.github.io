@@ -1,4 +1,4 @@
 ---
 layout: article
-title: About me
+title: Sobre mim
 ---
