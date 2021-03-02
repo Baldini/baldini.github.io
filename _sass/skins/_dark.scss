@@ -1,74 +1,77 @@
 ///
-// Skin: Dark
-// Author: Tian Qi
-// Email: kitian616@outlook.com
+// Skin: Dark custom
+// Author: Guilherme Baldini
+// Email: guilhermebaldini@hotmail.com
 ///
 
 // main colors
-$main-color-1:     #ff9500;
-$text-color-1:     rgba(#fff, .8);
+$main-color-1:     #23DCAF;
+$text-color-1:     #E9EBF6;
 
-$main-color-2:     #ff006a;
-$text-color-2:     rgba(#fff, .8);
+$main-color-2:     #1A86EA;
+$text-color-2:     #FFFFFF;
 
-$main-color-3:     #202020;
-$text-color-3:     rgba(#fff, .8);
+$main-color-3:     #2D466C;
+$text-color-3:     #F8F8FD;
 
-$main-color-theme-light: rgba(#000, .8);
-$main-color-theme-dark:  rgba(#fff, .8);
+$main-color-4:     #121C2B;
+$text-color-4:     #FFFFFF;
+
+$main-color-theme-light: rgba(#000, .9);
+$main-color-theme-dark:  rgba(#fff, .9);
 
 // page background
-$background-color: #121212;
+$background-color: #1A283E;
 
 // text colors
-$text-color-theme-light-d: #000;
-$text-color-theme-light:   #222;
-$text-color-theme-light-l: #888;
+$text-color-theme-light-d: #23DCAF;
+$text-color-theme-light:   #E9EBF6;
+$text-color-theme-light-l: #1A86EA;
 
-$text-color-theme-dark-d:  rgba(#fff, .8);
-$text-color-theme-dark:    rgba(#fff, .7);
-$text-color-theme-dark-l:  rgba(#fff, .5);
+$text-color-theme-dark-d:  #fff;
+$text-color-theme-dark:    rgba(#fff, .95);
+$text-color-theme-dark-l:  rgba(#fff, .85);
 
-$text-color-d:     $text-color-theme-dark-d;
-$text-color:       $text-color-theme-dark;
-$text-color-l:     $text-color-theme-dark-l;
+$text-color-d:     $text-color-theme-light-d;
+$text-color:       $text-color-theme-light;
+$text-color-l:     $text-color-theme-light-l;
 
-$text-background-color: rgba(#fff, .05);
+$text-background-color: rgba(#000, .05);
 
 // header and footer colors
 $header-text-color: $text-color-3;
 $header-background: $main-color-3;
 
-$footer-text-color: $text-color-3;
-$footer-background: $main-color-3;
+$footer-text-color: $text-color-4;
+$footer-background: $main-color-4;
 
 // border and shadow colors
-$border-color:     mix(#fff, $background-color, 20%);
-$border-color-l:   mix(#fff, $background-color, 10%);
-$decorate-color:   rgba(#fff, .1);
+$border-color:     mix(#000, $background-color, 20%);
+$border-color-l:   mix(#000, $background-color, 10%);
+$decorate-color:   rgba(#000, .1);
 $mask-color:       rgba(#000, .9);
 $select-color:     rgba($main-color-1, .5);
 
 // function colors
-$green:           #5baa34;
-$blue:            #1c7cd4;
-$yellow:          #c9771f;
-$red:             #da3d45;
-$text-color-function: rgba(#fff, .8);
+$green:           #52c41a;
+$blue:            #1890ff;
+$yellow:          #fa8c16;
+$red:             #f5222d;
+$text-color-function: #fff;
 
 // logo colors
-$mail-color:       #0072c5;
-$facebook-color:   #4267b2;
-$twitter-color:    #1da1f2;
-$weibo-color:      #e6162d;
-$google-plus-color:#ea4335;
-$telegram-color:   #32afed;
-$medium-color:     #000;
-$zhihu-color:      #0084ff;
-$douban-color:     #42bd56;
-$linkedin-color:   #1074af;
-$github-color:     #000;
-$npm-color:        #fff;
+$mail-color:       #23DCAF;
+$facebook-color:   #23DCAF;
+$twitter-color:    #23DCAF;
+$weibo-color:      #23DCAF;
+$google-plus-color:#23DCAF;
+$telegram-color:   #23DCAF;
+$medium-color:     #23DCAF;
+$zhihu-color:      #23DCAF;
+$douban-color:     #23DCAF;
+$linkedin-color:   #23DCAF;
+$github-color:     #23DCAF;
+$npm-color:        #23DCAF;
 
 // highlight colors
-@import "skins/highlight/tomorrow-night";
+@import "skins/highlight/tomorrow";
