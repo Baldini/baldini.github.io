@@ -4,7 +4,7 @@ tags: Exception
 key: dont-use-exceptions
 ---
 
-Acredito que todo mundo que começou na programação já usou muito exceptions para tratar erros, 
+Acho que a maioria da pessoas que trabalham com .NET a algum tempo ja deram o famoso "throw new Exception("deu erro aqui")", quando comecei na area era bem comum você ver um código cheio de exceptions para tratar varios tipos de "erros", quer dizer qualquer coisa que não era o caminho feliz mas isso atrapalha em muito o desempenho da aplicação.
 
 ## Vamos para o código
 
