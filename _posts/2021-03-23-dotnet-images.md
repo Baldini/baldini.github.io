@@ -4,13 +4,13 @@ tags: Docker .NET dotnet Core
 key: dotnet-images
 ---
 
-Ja passou o tempo em que aplicações .NET eram grande e precisavam de 1Gb de dependencia, hoje com poucos megas você consegue rodar uma aplicação .NET core com todas as dependencias, e no docker ficando abaixo dos 100Mb com pequenas modificações e consumindo a mesma quantidade de memoria e CPU, bom pra isso vamos destrinchar um poucos as imagens docker disponibilizadas pela microsoft, publish e fazer alguns pequenos testes.
+Já passou o tempo em que aplicações .NET eram grandes e precisavam de 1Gb de dependência, hoje com poucos megas você consegue rodar uma aplicação .NET core com todas as dependências, e no docker ficando abaixo dos 100Mb, com pequenas modificações e consumindo a mesma quantidade de memoria e CPU. Para isso vamos destrinchar um pouco as imagens docker disponibilizadas pela microsoft, publish e fazer pequenos testes.
 
 ## Setup
 
-Para exemplificar criei uma aplicação em ASP.NET Core 5.0, uma WEB API, e não modifiquei em nada, alem disso criei um teste com [Artillery](artillery.io) fazendo algumas chamadas para vermos a memoria utilizada, subi a imagem no docker local e executei os testes.
+Para exemplificar criei uma aplicação em ASP.NET Core 5.0, uma WEB API, e não modifiquei em nada, além disso criei um teste com [Artillery](artillery.io) fazendo algumas chamadas para vermos a memória utilizada, subi a imagem no docker local e executei os testes.
 
-Esse teste foi executado na minha propria maquina, que não é o melhor ambiente para um benchmark completo, então é muito mais para curiosidade e pequenas diferenças devem ser desconsideradas.
+Esse teste foi executado na minha própria máquina, que não é o melhor ambiente para um benchmark completo, então é muito mais para curiosidade e pequenas diferenças devem ser desconsideradas.
 
 ### Estrutura
 
@@ -20,7 +20,7 @@ Esse teste foi executado na minha propria maquina, que não é o melhor ambiente
 
 ### Arquivo de teste
 
-A ideia foi fazer 10 chamadas por 10 segundos para Warmup e logo em seguida aumentar até 30 durante 40 segundos, gerando aproximadamente 900 chamadas, segue o arquivo do Artillery utilizado
+A ideia foi fazer 10 chamadas por 10 segundos, para Warmup, e logo em seguida aumentar até 30 durante 40 segundos, gerando aproximadamente 900 chamadas, segue o arquivo do Artillery utilizado:
 
 {% highlight yml %}
 config:
@@ -40,7 +40,7 @@ scenarios:
 
 ## Multi-stage build
 
-Nos dockerfiles de exemplo usamos [multi-stage build](https://docs.docker.com/develop/develop-images/multistage-build/), onde temos uma imagem base que será utilizado por fim e fazemos o build dentro do proprio docker e repassamos os arquivos publicados para a imagem base, fazendo ficar mais simples de entender o que está acontecendo e como a aplicação está sendo buildada ao inves de fazer o build local e copiar para a imagem docker.
+Nos dockerfiles de exemplo usamos [multi-stage build](https://docs.docker.com/develop/develop-images/multistage-build/), onde temos uma imagem base que será utilizada, por fim fazemos o build dentro do próprio docker e repassamos os arquivos publicados para a imagem base, fazendo com que fique mais simples de entender o que está acontecendo, como a aplicação está sendo buildada ao invés de fazer o build local e copiar para a imagem docker.
 
 ## Dockerfile padrão
 
@@ -69,7 +69,7 @@ ENTRYPOINT ["dotnet", "DockerImages.dll"]
 
 Nesse dockerfile estamos usando a imagem padrão do asp na versão 5.0 com buster-slim, ela é baseada no Debian e tem o ASP.NET Core e os runtimes do .NET e é otimizada para rodar aplicações ASP.NET.
 
-Essa é a imagem padrão quando adicionamos suporte a docker pelo Visual Studio.
+Esta é a imagem padrão quando adicionamos suporte a docker pelo Visual Studio.
 
 ### Resultados
 
@@ -102,7 +102,7 @@ COPY --from=publish /app/publish .
 ENTRYPOINT ["./DockerImages"]
 {% endhighlight %}
 
-Aqui temos algumas modificações, mudamos a imagem para a runtime-deps:alpine, que é baseada no Alpine e contem as dependencias necessárias para rodar o .NET, ela é o ideal para rodar aplicações self-contained, então alteramos o comando de publicação para gerar uma aplicação self-contained e para o runtime do linux.
+Aqui temos algumas modificações, mudamos a imagem para a runtime-deps:alpine, que é baseada no Alpine e contém as dependências necessárias para rodar o .NET, ela é ideal para rodar aplicações self-contained, então alteramos o comando de publicação para gerar uma aplicação self-contained e para o runtime do linux.
 
 ### Resultados
 
@@ -110,7 +110,7 @@ Aqui temos algumas modificações, mudamos a imagem para a runtime-deps:alpine, 
 - Memory Idle: 32mb
 - Memory Max: 54mb
 
-Com essas modificações conseguimos diminuir o tamanho total da imagem para 104mb sem modificações no uso de memoria.
+Com essas modificações conseguimos diminuir o tamanho total da imagem para 104mb, sem modificações no uso de memória.
 
 ## Trimmed
 
@@ -145,7 +145,7 @@ Podemos adicionar no dotnet publish para remover as bibliotecas não usadas e de
 - Memory Idle: 36mb
 - Memory Max: 59mb
 
-Agora temos uma imagem ainda menor sem comprometer a memoria consumida.
+Agora temos uma imagem ainda menor, sem comprometer a memória consumida.
 
 ## Single file
 
@@ -172,7 +172,7 @@ COPY --from=publish /app/publish .
 ENTRYPOINT ["./DockerImages"]
 {% endhighlight %}
 
-Podemos diminuir ainda mais a imagem colocando a opção no publish de SingleFile, que faz todos os arquivos e dependencias ficarem dentro de um unico arquivo.
+Podemos diminuir ainda mais a imagem colocando a opção no publish de SingleFile, que faz com que todos os arquivos e dependências fiquem dentro de um único arquivo.
 
 ### Resultados
 
@@ -180,7 +180,7 @@ Podemos diminuir ainda mais a imagem colocando a opção no publish de SingleFil
 - Memory Idle: 36mb
 - Memory Max: 59mb
 
-Agora temos uma imagem ainda menor sem comprometer a memoria consumida.
+Agora temos uma imagem ainda menor, sem comprometer a memória consumida.
 
 ## Resultados finais
 
@@ -191,6 +191,6 @@ Agora temos uma imagem ainda menor sem comprometer a memoria consumida.
 |Trimmed|61.6Mb|36Mb|59mb|
 |Single file|50.2Mb|36Mb|59mb|
 
-Você pode explorar mais opções de [Publish](https://docs.microsoft.com/pt-br/dotnet/core/tools/dotnet-publish) ou versões diferentes das imagens [Docker](https://github.com/dotnet/dotnet-docker)
+Você pode explorar mais opções de [Publish](https://docs.microsoft.com/pt-br/dotnet/core/tools/dotnet-publish) ou versões diferentes das imagens [Docker](https://github.com/dotnet/dotnet-docker).
 
-Com isso podemos ter uma imagem com nossa aplicação com 60mb de tamanho, consumindo 35mb de ram e com mais segurança com imagens alpine e com um dos melhores desempenhos :)
+Com isso podemos ter uma imagem com nossa aplicação, com 60mb de tamanho, consumindo 35mb de ram, e com mais segurança com imagens alpine e com um dos melhores desempenhos. :)
