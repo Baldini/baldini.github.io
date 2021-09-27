@@ -37,7 +37,7 @@ PS. A partir de agora já terei feito o download das imagens para facilitar nos 
 
 Estou subindo a imagem e mapeando com o comando "-p 80:80" a porta 80 do container para a porta 80 do meu computador host, explicarei mais sobre portas a seguir, então se eu acessar <http://localhost> no meu navegador, posso ver uma pagina web do docker:
 
-![image](/assets/images/2020/02/docker-compose-vs/docker-compose-vs-01.jpg)
+![image](/assets/images/2021/09/docker-compose-vs-01.jpg)
 
 ## Docker compose
 
@@ -153,7 +153,7 @@ Se a sua aplicação não está rodando no docker é só subir seu docker-compos
 
 Caso queira rodar sua aplicação no docker, junto com o visual studio, é só habilitar o "Container Orchestrator Support", clicando com o botão direito no seu projeto, o Visual Studio criará seu docker-compose, que você poderá modificar a vontade.
 
-![image](/assets/images/2020/02/docker-compose-vs/docker-compose-vs-02.jpg)
+![image](/assets/images/2021/09/docker-compose-vs-02.jpg)
 
 As configurações mudam um pouquinho, agora você não vai acessar mais localhost e sim pelo nome do container, pois todos estão na mesma rede e compose, e sua aplicação não estará mais rodando na sua máquina, e sim em um container, ficando algo assim:
 
