@@ -8,13 +8,33 @@ Nos ultimos anos tenho utilizado muito RabbitMQ para comunicação assincrona e 
 
 RabbitMQ é um Message Broker, Message Brokers são meios de comunicação entre aplicações que redirecionam as mensagens para os serviços que irão consumir as mesmas, no caso do Rabbit utilizando filas, que é igual a fila da padaria, o primeiro a entrar é o primeiro a sair da fila.
 
------- IMAGEM -----
+<div align="center" markdown="1">
+``` mermaid
+graph LR;
+    Producer-->RabbitMQ;
+    subgraph Message Broker
+     RabbitMQ;
+    end;
+    RabbitMQ--> Consumer;
+```
+</div>
 
 Para isso, temos um Produtor (producer) das mensagens que vão para a fila (queue) e um consumidor (consumer) das mensagens, eles não necessitam ser da mesma linguagem nem mesmo se conhecerem, podem exisitr varios produtores da mesma mensagem como varios consumidores da mesma mensagem.
 
 Para facilitar o envio de mensagens para diversas filas, que podem ter consumers distintos para as mesmas mensagens, no RabbitMQ temos as Exchanges, então ao inves de um producer enviar dados diretamente para a fila ele envia para um exchange que faz o roteamento para as devidas Queues configuradas e prontas para serem consumidas.
 
------- IMAGEM 2 ------
+<div align="center" markdown="1">
+``` mermaid
+graph LR;
+    Producer-->Exchange;
+    subgraph RabbitMQ
+     Exchange-->Q1(Queue 1);
+     Exchange-->Q2(Queue 2);
+    end;
+    Q1-->C1(Consumer 1);
+    Q2-->C2(Consumer 2);
+```
+</div>
 
 Claro que isso começa a confundir um pouco e porque eu iria querer fazer isso? Bom, imagina que você tem um e-commerce, e quando um pedido foi separado e está pronto para ser enviado você precisa notificar o cliente o status do pedido dele e a empresa transportadora para ir buscar aquele pedido, com uma exchange o seu producer pode enviar uma unica mensagem de “Pedido pronto para envio” que será redirecionado pelo RabbitMQ para 2 filas, exatamente a mesma mensagem, mas consumer com sua propria fila, irá tratar essa mensagem de maneira diferente, fazendo assim que 1 mensagem só seja enviada mas que tenha 2 processamentos distintos que não impactam um ao outro.
 
