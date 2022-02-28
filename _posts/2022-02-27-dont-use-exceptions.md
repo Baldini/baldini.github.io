@@ -11,7 +11,7 @@ Acho que a maioria da pessoas que trabalham com .NET a algum tempo ja deram o fa
 Um dos primeiro códigos que fazemos é o famoso "verificar se é par", bom vamos fazer o tratamento disto com exception em um ConsoleApp.
 
 {% highlight C# %}
-public void ItsEvenException()
+public void IsEvenException()
 {
     try
     {
@@ -27,7 +27,7 @@ public void ItsEvenException()
 Podemos simplesmente retornar um bool tambem
 
 {% highlight C# %}
-public bool ItsEvenBool()
+public bool IsEvenBool()
 {
     if (number % 2 == 0)
         return true;
@@ -57,19 +57,19 @@ public class IsEven
     public int number;
 
     [Benchmark]
-    public void ItsEvenException()
+    public void IsEvenException()
     {
         try
         {
             if (number % 2 != 0)
-                throw new Exception("It's not even");
+                throw new Exception("Is not even");
         }
         catch (Exception)
         {
         }
     }
     [Benchmark]
-    public bool ItsEvenBool()
+    public bool IsEvenBool()
     {
         if (number % 2 == 0)
             return true;
@@ -79,7 +79,7 @@ public class IsEven
 }
 {% endhighlight %}
 
-![image](/assets/images/2020/03/dont-use-exception-01.jpg)
+![image](/assets/images/2022/02/dont-use-exception-01.jpg)
 
 Podemos ver que para o número 2, o par, não teve la grande mudança no tempo de execução, já no número impar quando a exception é lançada o tempo explodiu.
 
@@ -92,13 +92,13 @@ Se mesmo assim eu não te convenci, vamos para uma aplicação ASP.NET core, com
 {% highlight C# %}
 [ApiController]
 [Route("[controller]")]
-public class ItsEvenController : ControllerBase
+public class IsEvenController : ControllerBase
 {
    [HttpGet]
     [Route("Bool")]
-    public ActionResult ItsEvenBool(int number)
+    public ActionResult IsEvenBool(int number)
     {
-        if (IsEven.ItsEvenBool(number))
+        if (IsEven.IsEvenBool(number))
             return Ok();
 
         return BadRequest("It's not even");
@@ -106,11 +106,11 @@ public class ItsEvenController : ControllerBase
 
     [HttpGet]
     [Route("Exception")]
-    public ActionResult ItsEventException(int number)
+    public ActionResult IsEventException(int number)
     {
         try
         {
-            IsEven.ItsEvenException(number);
+            IsEven.IsEvenException(number);
             return Ok();
         }
         catch (Exception ex)
@@ -122,13 +122,13 @@ public class ItsEvenController : ControllerBase
 
 public class IsEven
 {
-    public static void ItsEvenException(int number)
+    public static void IsEvenException(int number)
     {
         if (number % 2 != 0)
             throw new Exception("It's not even");
     }   
 
-    public static bool ItsEvenBool(int number)
+    public static bool IsEvenBool(int number)
     {
         if (number % 2 == 0)
             return true;
@@ -140,7 +140,7 @@ public class IsEven
 
 E efetuando um CURL podemos verificar os tempos de respostas:
 
-![image](/assets/images/2020/03/dont-use-exception-02.jpg)
+![image](/assets/images/2022/02/dont-use-exception-02.jpg)
 
 Temos mais que o dobro do tempo de resposta, sendo um código extremamente simples.
 
