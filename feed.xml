@@ -1,0 +1,805 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en"><generator uri="https://jekyllrb.com/" version="4.2.2">Jekyll</generator><link href="https://www.baldini.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://www.baldini.io/" rel="alternate" type="text/html" hreflang="en" /><updated>2022-08-05T18:52:38-03:00</updated><id>https://www.baldini.io/feed.xml</id><title type="html">Guilherme Baldini</title><subtitle>Aleatoriedades caóticas do limbo imaginativo de um programador
+</subtitle><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><entry><title type="html">Diminuindo suas imagens Docker .NET Core</title><link href="https://www.baldini.io/2022/02/28/dotnet-images.html" rel="alternate" type="text/html" title="Diminuindo suas imagens Docker .NET Core" /><published>2022-02-28T00:00:00-03:00</published><updated>2022-02-28T00:00:00-03:00</updated><id>https://www.baldini.io/2022/02/28/dotnet-images</id><content type="html" xml:base="https://www.baldini.io/2022/02/28/dotnet-images.html"><![CDATA[<p>Já passou o tempo em que aplicações .NET eram grandes e precisavam de 1Gb de dependência, hoje com poucos megas você consegue rodar uma aplicação .NET core com todas as dependências, e no docker ficando abaixo dos 100Mb, com pequenas modificações e consumindo a mesma quantidade de memoria e CPU. Para isso vamos destrinchar um pouco as imagens docker disponibilizadas pela microsoft, publish e fazer pequenos testes.</p>
+
+<h2 id="setup">Setup</h2>
+
+<p>Para exemplificar criei uma aplicação em ASP.NET Core 5.0, uma WEB API, e não modifiquei em nada, além disso criei um teste com <a href="artillery.io">Artillery</a> fazendo algumas chamadas para vermos a memória utilizada, subi a imagem no docker local e executei os testes.</p>
+
+<p>Esse teste foi executado na minha própria máquina, que não é o melhor ambiente para um benchmark completo, então é muito mais para curiosidade e pequenas diferenças devem ser desconsideradas.</p>
+
+<h3 id="estrutura">Estrutura</h3>
+
+<ul>
+  <li>Verificação do tamanho da imagem</li>
+  <li>Verificação da memória utilizada sem nenhuma chamada</li>
+  <li>Verificação da memória máxima com o script de teste</li>
+</ul>
+
+<h3 id="arquivo-de-teste">Arquivo de teste</h3>
+
+<p>A ideia foi fazer 10 chamadas por 10 segundos, para Warmup, e logo em seguida aumentar até 30 durante 40 segundos, gerando aproximadamente 900 chamadas, segue o arquivo do Artillery utilizado:</p>
+
+<figure class="highlight"><pre><code class="language-yml" data-lang="yml"><span class="na">config</span><span class="pi">:</span>
+  <span class="na">target</span><span class="pi">:</span> <span class="s1">'</span><span class="s">http://localhost:3222'</span>
+  <span class="na">phases</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">duration</span><span class="pi">:</span> <span class="m">10</span>
+      <span class="na">arrivalRate</span><span class="pi">:</span> <span class="m">10</span>
+      <span class="na">name</span><span class="pi">:</span> <span class="s2">"</span><span class="s">Warmup"</span>
+    <span class="pi">-</span> <span class="na">duration</span><span class="pi">:</span> <span class="m">40</span>
+      <span class="na">arrivalRate</span><span class="pi">:</span> <span class="m">10</span>
+      <span class="na">rampTo</span><span class="pi">:</span> <span class="m">30</span>
+<span class="na">scenarios</span><span class="pi">:</span>
+  <span class="pi">-</span> <span class="na">flow</span><span class="pi">:</span>
+    <span class="pi">-</span> <span class="na">get</span><span class="pi">:</span>
+        <span class="na">url</span><span class="pi">:</span> <span class="s2">"</span><span class="s">/WeatherForecast"</span></code></pre></figure>
+
+<h2 id="multi-stage-build">Multi-stage build</h2>
+
+<p>Nos dockerfiles de exemplo usamos <a href="https://docs.docker.com/develop/develop-images/multistage-build/">multi-stage build</a>, onde temos uma imagem base que será utilizada, por fim fazemos o build dentro do próprio docker e repassamos os arquivos publicados para a imagem base, fazendo com que fique mais simples de entender o que está acontecendo, como a aplicação está sendo buildada ao invés de fazer o build local e copiar para a imagem docker.</p>
+
+<h2 id="dockerfile-padrão">Dockerfile padrão</h2>
+
+<figure class="highlight"><pre><code class="language-dockerfile" data-lang="dockerfile"><span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/aspnet:5.0-buster-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">EXPOSE</span><span class="s"> 80</span>
+<span class="k">EXPOSE</span><span class="s"> 443</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/sdk:5.0-buster-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">build</span>
+<span class="k">WORKDIR</span><span class="s"> /src</span>
+<span class="k">COPY</span><span class="s"> ["DockerImages/DockerImages.csproj", "DockerImages/"]</span>
+<span class="k">RUN </span>dotnet restore <span class="s2">"DockerImages/DockerImages.csproj"</span>
+<span class="k">COPY</span><span class="s"> . .</span>
+<span class="k">WORKDIR</span><span class="s"> "/src/DockerImages"</span>
+<span class="k">RUN </span>dotnet build <span class="s2">"DockerImages.csproj"</span> <span class="nt">-c</span> Release <span class="nt">-o</span> /app/build
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">build</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">publish</span>
+<span class="k">RUN </span>dotnet publish <span class="s2">"DockerImages.csproj"</span> <span class="nt">-c</span> Release <span class="nt">-o</span> /app/publish
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">base</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">final</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">COPY</span><span class="s"> --from=publish /app/publish .</span>
+<span class="k">ENTRYPOINT</span><span class="s"> ["dotnet", "DockerImages.dll"]</span></code></pre></figure>
+
+<p>Nesse dockerfile estamos usando a imagem padrão do asp na versão 5.0 com buster-slim, ela é baseada no Debian e tem o ASP.NET Core e os runtimes do .NET e é otimizada para rodar aplicações ASP.NET.</p>
+
+<p>Esta é a imagem padrão quando adicionamos suporte a docker pelo Visual Studio.</p>
+
+<h3 id="resultados">Resultados</h3>
+
+<ul>
+  <li>Size: 205mb</li>
+  <li>Memory Idle: 35mb</li>
+  <li>Memory Max: 60mb</li>
+</ul>
+
+<h2 id="runtime-deps-alpine">Runtime Deps alpine</h2>
+
+<figure class="highlight"><pre><code class="language-dockerfile" data-lang="dockerfile"><span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">EXPOSE</span><span class="s"> 80</span>
+<span class="k">EXPOSE</span><span class="s"> 443</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/sdk:5.0-buster-slim</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">build</span>
+<span class="k">WORKDIR</span><span class="s"> /src</span>
+<span class="k">COPY</span><span class="s"> ["DockerImages/DockerImages.csproj", "DockerImages/"]</span>
+<span class="k">RUN </span>dotnet restore <span class="s2">"DockerImages/DockerImages.csproj"</span>
+<span class="k">COPY</span><span class="s"> . .</span>
+<span class="k">WORKDIR</span><span class="s"> "/src/DockerImages"</span>
+<span class="k">RUN </span>dotnet build <span class="s2">"DockerImages.csproj"</span> <span class="nt">-c</span> Release <span class="nt">-o</span> /app/build
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">build</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">publish</span>
+<span class="k">RUN </span>dotnet publish <span class="s2">"DockerImages.csproj"</span> <span class="nt">-o</span> /app/publish <span class="nt">-r</span> linux-musl-x64 <span class="nt">--self-contained</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">base</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">final</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">COPY</span><span class="s"> --from=publish /app/publish .</span>
+<span class="k">ENTRYPOINT</span><span class="s"> ["./DockerImages"]</span></code></pre></figure>
+
+<p>Aqui temos algumas modificações, mudamos a imagem para a runtime-deps:alpine, que é baseada no Alpine e contém as dependências necessárias para rodar o .NET, ela é ideal para rodar aplicações self-contained, então alteramos o comando de publicação para gerar uma aplicação self-contained e para o runtime do linux.</p>
+
+<h3 id="resultados-1">Resultados</h3>
+
+<ul>
+  <li>Size: 104mb</li>
+  <li>Memory Idle: 32mb</li>
+  <li>Memory Max: 54mb</li>
+</ul>
+
+<p>Com essas modificações conseguimos diminuir o tamanho total da imagem para 104mb, sem modificações no uso de memória.</p>
+
+<h2 id="trimmed">Trimmed</h2>
+
+<figure class="highlight"><pre><code class="language-dockerfile" data-lang="dockerfile"><span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">EXPOSE</span><span class="s"> 80</span>
+<span class="k">EXPOSE</span><span class="s"> 443</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/sdk:5.0-alpine</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">build</span>
+<span class="k">WORKDIR</span><span class="s"> /src</span>
+<span class="k">COPY</span><span class="s"> ["DockerImages/DockerImages.csproj", "DockerImages/"]</span>
+<span class="k">RUN </span>dotnet restore <span class="s2">"DockerImages/DockerImages.csproj"</span>
+<span class="k">COPY</span><span class="s"> . .</span>
+<span class="k">WORKDIR</span><span class="s"> "/src/DockerImages"</span>
+<span class="k">RUN </span>dotnet build <span class="s2">"DockerImages.csproj"</span> <span class="nt">-c</span> Release <span class="nt">-o</span> /app/build
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">build</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">publish</span>
+<span class="k">RUN </span>dotnet publish <span class="s2">"DockerImages.csproj"</span> <span class="nt">-r</span> linux-musl-x64 <span class="nt">-o</span> /app/publish /p:PublishTrimmed<span class="o">=</span><span class="nb">true</span> <span class="nt">--no-restore</span> <span class="nt">--self-contained</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">base</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">final</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">COPY</span><span class="s"> --from=publish /app/publish .</span>
+<span class="k">ENTRYPOINT</span><span class="s"> ["./DockerImages"]</span></code></pre></figure>
+
+<p>Podemos adicionar no dotnet publish para remover as bibliotecas não usadas e deminuindo ainda mais o tamanho da nossa imagem.</p>
+
+<h3 id="resultados-2">Resultados</h3>
+
+<ul>
+  <li>Size: 61.6mb</li>
+  <li>Memory Idle: 36mb</li>
+  <li>Memory Max: 59mb</li>
+</ul>
+
+<p>Agora temos uma imagem ainda menor, sem comprometer a memória consumida.</p>
+
+<h2 id="single-file">Single file</h2>
+
+<figure class="highlight"><pre><code class="language-dockerfile" data-lang="dockerfile"><span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">base</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">EXPOSE</span><span class="s"> 80</span>
+<span class="k">EXPOSE</span><span class="s"> 443</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">mcr.microsoft.com/dotnet/sdk:5.0-alpine</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">build</span>
+<span class="k">WORKDIR</span><span class="s"> /src</span>
+<span class="k">COPY</span><span class="s"> ["DockerImages/DockerImages.csproj", "DockerImages/"]</span>
+<span class="k">RUN </span>dotnet restore <span class="s2">"DockerImages/DockerImages.csproj"</span>
+<span class="k">COPY</span><span class="s"> . .</span>
+<span class="k">WORKDIR</span><span class="s"> "/src/DockerImages"</span>
+<span class="k">RUN </span>dotnet build <span class="s2">"DockerImages.csproj"</span> <span class="nt">-c</span> Release <span class="nt">-o</span> /app/build
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">build</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">publish</span>
+<span class="k">RUN </span>dotnet publish <span class="s2">"DockerImages.csproj"</span> <span class="nt">-r</span> linux-musl-x64 <span class="nt">-o</span> /app/publish /p:PublishTrimmed<span class="o">=</span><span class="nb">true</span> /p:PublishSingleFile<span class="o">=</span><span class="nb">true</span> <span class="nt">--no-restore</span> <span class="nt">--self-contained</span>
+
+<span class="k">FROM</span><span class="w"> </span><span class="s">base</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="s">final</span>
+<span class="k">WORKDIR</span><span class="s"> /app</span>
+<span class="k">COPY</span><span class="s"> --from=publish /app/publish .</span>
+<span class="k">ENTRYPOINT</span><span class="s"> ["./DockerImages"]</span></code></pre></figure>
+
+<p>Podemos diminuir ainda mais a imagem colocando a opção no publish de SingleFile, que faz com que todos os arquivos e dependências fiquem dentro de um único arquivo.</p>
+
+<h3 id="resultados-3">Resultados</h3>
+
+<ul>
+  <li>Size: 50.2mb</li>
+  <li>Memory Idle: 36mb</li>
+  <li>Memory Max: 59mb</li>
+</ul>
+
+<p>Agora temos uma imagem ainda menor, sem comprometer a memória consumida.</p>
+
+<h2 id="resultados-finais">Resultados finais</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Image</th>
+      <th>Size</th>
+      <th>Memory Idle</th>
+      <th>Memory Max</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Base</td>
+      <td>205Mb</td>
+      <td>35Mb</td>
+      <td>60Mb</td>
+    </tr>
+    <tr>
+      <td>Runtime Deps</td>
+      <td>104Mb</td>
+      <td>32mb</td>
+      <td>54mb</td>
+    </tr>
+    <tr>
+      <td>Trimmed</td>
+      <td>61.6Mb</td>
+      <td>36Mb</td>
+      <td>59mb</td>
+    </tr>
+    <tr>
+      <td>Single file</td>
+      <td>50.2Mb</td>
+      <td>36Mb</td>
+      <td>59mb</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>Você pode explorar mais opções de <a href="https://docs.microsoft.com/pt-br/dotnet/core/tools/dotnet-publish">Publish</a> ou versões diferentes das imagens <a href="https://github.com/dotnet/dotnet-docker">Docker</a>.</p>
+
+<p>Com isso podemos ter uma imagem com nossa aplicação, com 60mb de tamanho, consumindo 35mb de ram, e com mais segurança com imagens alpine e com um dos melhores desempenhos. :)</p>]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term="Docker" /><category term=".NET" /><category term="dotnet" /><category term="Core" /><summary type="html"><![CDATA[Já passou o tempo em que aplicações .NET eram grandes e precisavam de 1Gb de dependência, hoje com poucos megas você consegue rodar uma aplicação .NET core com todas as dependências, e no docker ficando abaixo dos 100Mb, com pequenas modificações e consumindo a mesma quantidade de memoria e CPU. Para isso vamos destrinchar um pouco as imagens docker disponibilizadas pela microsoft, publish e fazer pequenos testes. Setup Para exemplificar criei uma aplicação em ASP.NET Core 5.0, uma WEB API, e não modifiquei em nada, além disso criei um teste com Artillery fazendo algumas chamadas para vermos a memória utilizada, subi a imagem no docker local e executei os testes. Esse teste foi executado na minha própria máquina, que não é o melhor ambiente para um benchmark completo, então é muito mais para curiosidade e pequenas diferenças devem ser desconsideradas. Estrutura Verificação do tamanho da imagem Verificação da memória utilizada sem nenhuma chamada Verificação da memória máxima com o script de teste Arquivo de teste A ideia foi fazer 10 chamadas por 10 segundos, para Warmup, e logo em seguida aumentar até 30 durante 40 segundos, gerando aproximadamente 900 chamadas, segue o arquivo do Artillery utilizado: config: target: 'http://localhost:3222' phases: - duration: 10 arrivalRate: 10 name: "Warmup" - duration: 40 arrivalRate: 10 rampTo: 30 scenarios: - flow: - get: url: "/WeatherForecast" Multi-stage build Nos dockerfiles de exemplo usamos multi-stage build, onde temos uma imagem base que será utilizada, por fim fazemos o build dentro do próprio docker e repassamos os arquivos publicados para a imagem base, fazendo com que fique mais simples de entender o que está acontecendo, como a aplicação está sendo buildada ao invés de fazer o build local e copiar para a imagem docker. Dockerfile padrão FROM mcr.microsoft.com/dotnet/aspnet:5.0-buster-slim AS base WORKDIR /app EXPOSE 80 EXPOSE 443 FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim AS build WORKDIR /src COPY ["DockerImages/DockerImages.csproj", "DockerImages/"] RUN dotnet restore "DockerImages/DockerImages.csproj" COPY . . WORKDIR "/src/DockerImages" RUN dotnet build "DockerImages.csproj" -c Release -o /app/build FROM build AS publish RUN dotnet publish "DockerImages.csproj" -c Release -o /app/publish FROM base AS final WORKDIR /app COPY --from=publish /app/publish . ENTRYPOINT ["dotnet", "DockerImages.dll"] Nesse dockerfile estamos usando a imagem padrão do asp na versão 5.0 com buster-slim, ela é baseada no Debian e tem o ASP.NET Core e os runtimes do .NET e é otimizada para rodar aplicações ASP.NET. Esta é a imagem padrão quando adicionamos suporte a docker pelo Visual Studio. Resultados Size: 205mb Memory Idle: 35mb Memory Max: 60mb Runtime Deps alpine FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS base WORKDIR /app EXPOSE 80 EXPOSE 443 FROM mcr.microsoft.com/dotnet/sdk:5.0-buster-slim AS build WORKDIR /src COPY ["DockerImages/DockerImages.csproj", "DockerImages/"] RUN dotnet restore "DockerImages/DockerImages.csproj" COPY . . WORKDIR "/src/DockerImages" RUN dotnet build "DockerImages.csproj" -c Release -o /app/build FROM build AS publish RUN dotnet publish "DockerImages.csproj" -o /app/publish -r linux-musl-x64 --self-contained FROM base AS final WORKDIR /app COPY --from=publish /app/publish . ENTRYPOINT ["./DockerImages"] Aqui temos algumas modificações, mudamos a imagem para a runtime-deps:alpine, que é baseada no Alpine e contém as dependências necessárias para rodar o .NET, ela é ideal para rodar aplicações self-contained, então alteramos o comando de publicação para gerar uma aplicação self-contained e para o runtime do linux. Resultados Size: 104mb Memory Idle: 32mb Memory Max: 54mb Com essas modificações conseguimos diminuir o tamanho total da imagem para 104mb, sem modificações no uso de memória. Trimmed FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS base WORKDIR /app EXPOSE 80 EXPOSE 443 FROM mcr.microsoft.com/dotnet/sdk:5.0-alpine AS build WORKDIR /src COPY ["DockerImages/DockerImages.csproj", "DockerImages/"] RUN dotnet restore "DockerImages/DockerImages.csproj" COPY . . WORKDIR "/src/DockerImages" RUN dotnet build "DockerImages.csproj" -c Release -o /app/build FROM build AS publish RUN dotnet publish "DockerImages.csproj" -r linux-musl-x64 -o /app/publish /p:PublishTrimmed=true --no-restore --self-contained FROM base AS final WORKDIR /app COPY --from=publish /app/publish . ENTRYPOINT ["./DockerImages"] Podemos adicionar no dotnet publish para remover as bibliotecas não usadas e deminuindo ainda mais o tamanho da nossa imagem. Resultados Size: 61.6mb Memory Idle: 36mb Memory Max: 59mb Agora temos uma imagem ainda menor, sem comprometer a memória consumida. Single file FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-alpine AS base WORKDIR /app EXPOSE 80 EXPOSE 443 FROM mcr.microsoft.com/dotnet/sdk:5.0-alpine AS build WORKDIR /src COPY ["DockerImages/DockerImages.csproj", "DockerImages/"] RUN dotnet restore "DockerImages/DockerImages.csproj" COPY . . WORKDIR "/src/DockerImages" RUN dotnet build "DockerImages.csproj" -c Release -o /app/build FROM build AS publish RUN dotnet publish "DockerImages.csproj" -r linux-musl-x64 -o /app/publish /p:PublishTrimmed=true /p:PublishSingleFile=true --no-restore --self-contained FROM base AS final WORKDIR /app COPY --from=publish /app/publish . ENTRYPOINT ["./DockerImages"] Podemos diminuir ainda mais a imagem colocando a opção no publish de SingleFile, que faz com que todos os arquivos e dependências fiquem dentro de um único arquivo. Resultados Size: 50.2mb Memory Idle: 36mb Memory Max: 59mb Agora temos uma imagem ainda menor, sem comprometer a memória consumida. Resultados finais Image Size Memory Idle Memory Max Base 205Mb 35Mb 60Mb Runtime Deps 104Mb 32mb 54mb Trimmed 61.6Mb 36Mb 59mb Single file 50.2Mb 36Mb 59mb Você pode explorar mais opções de Publish ou versões diferentes das imagens Docker. Com isso podemos ter uma imagem com nossa aplicação, com 60mb de tamanho, consumindo 35mb de ram, e com mais segurança com imagens alpine e com um dos melhores desempenhos. :)]]></summary></entry><entry><title type="html">Não use exceptions</title><link href="https://www.baldini.io/2022/02/20/dont-use-exceptions.html" rel="alternate" type="text/html" title="Não use exceptions" /><published>2022-02-20T00:00:00-03:00</published><updated>2022-02-20T00:00:00-03:00</updated><id>https://www.baldini.io/2022/02/20/dont-use-exceptions</id><content type="html" xml:base="https://www.baldini.io/2022/02/20/dont-use-exceptions.html"><![CDATA[<p>Acho que a maioria da pessoas que trabalham com .NET a algum tempo ja deram o famoso “throw new Exception(“deu erro aqui”)”, quando comecei na area era bem comum você ver um código cheio de exceptions para tratar varios tipos de “erros”, quer dizer qualquer coisa que não era o caminho feliz mas isso atrapalha em muito o desempenho da aplicação.</p>
+
+<h2 id="vamos-para-o-código">Vamos para o código</h2>
+
+<p>Um dos primeiro códigos que fazemos é o famoso “verificar se é par”, bom vamos fazer o tratamento disto com exception em um ConsoleApp.</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">IsEvenException</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">try</span>
+    <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">!=</span> <span class="m">0</span><span class="p">)</span>
+        <span class="k">throw</span> <span class="k">new</span> <span class="nf">Exception</span><span class="p">(</span><span class="s">"It's not even"</span><span class="p">);</span>
+    <span class="p">}</span>
+    <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span><span class="p">)</span>
+    <span class="p">{</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Podemos simplesmente retornar um bool tambem</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="kt">bool</span> <span class="nf">IsEvenBool</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="k">true</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+<span class="p">}</span></code></pre></figure>
+
+<h3 id="benchmark">Benchmark</h3>
+
+<p>E podemos rodar um <a href="https://github.com/dotnet/BenchmarkDotNet">Benchmark.net</a> para testarmos e vermos como irá se comportar.</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">class</span> <span class="nc">Program</span>
+<span class="p">{</span>
+    <span class="k">static</span> <span class="k">void</span> <span class="nf">Main</span><span class="p">(</span><span class="kt">string</span><span class="p">[]</span> <span class="n">args</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">summary</span> <span class="p">=</span> <span class="n">BenchmarkRunner</span><span class="p">.</span><span class="n">Run</span><span class="p">&lt;</span><span class="n">IsEven</span><span class="p">&gt;();</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="p">[</span><span class="n">MemoryDiagnoser</span><span class="p">]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">IsEven</span>
+<span class="p">{</span>
+
+    <span class="p">[</span><span class="nf">Params</span><span class="p">(</span><span class="m">2</span><span class="p">,</span> <span class="m">5</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="kt">int</span> <span class="n">number</span><span class="p">;</span>
+
+    <span class="p">[</span><span class="n">Benchmark</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">IsEvenException</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="k">try</span>
+        <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">!=</span> <span class="m">0</span><span class="p">)</span>
+                <span class="k">throw</span> <span class="k">new</span> <span class="nf">Exception</span><span class="p">(</span><span class="s">"Is not even"</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span><span class="p">)</span>
+        <span class="p">{</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="p">[</span><span class="n">Benchmark</span><span class="p">]</span>
+    <span class="k">public</span> <span class="kt">bool</span> <span class="nf">IsEvenBool</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span>
+            <span class="k">return</span> <span class="k">true</span><span class="p">;</span>
+
+        <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><img src="/assets/images/2022/02/dont-use-exception-01.jpg" alt="image" /></p>
+
+<p>Podemos ver que para o número 2, o par, não teve la grande mudança no tempo de execução, já no número impar quando a exception é lançada o tempo explodiu.</p>
+
+<p>Bom, não faz sentido usarmos exceptions para tratarmos o fluxo da nossa aplicação, afinal são exceções, se você está seguindo seu fluxo de trabalho não faz sentido usar exceptions, que para a galera mais antiga vai lembrar, são GOTO menos feios.</p>
+
+<h2 id="aspnet">ASP.NET</h2>
+
+<p>Se mesmo assim eu não te convenci, vamos para uma aplicação ASP.NET core, com o mesmo código:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="p">[</span><span class="n">ApiController</span><span class="p">]</span>
+<span class="p">[</span><span class="nf">Route</span><span class="p">(</span><span class="s">"[controller]"</span><span class="p">)]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">IsEvenController</span> <span class="p">:</span> <span class="n">ControllerBase</span>
+<span class="p">{</span>
+   <span class="p">[</span><span class="n">HttpGet</span><span class="p">]</span>
+    <span class="p">[</span><span class="nf">Route</span><span class="p">(</span><span class="s">"Bool"</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="n">ActionResult</span> <span class="nf">IsEvenBool</span><span class="p">(</span><span class="kt">int</span> <span class="n">number</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">IsEven</span><span class="p">.</span><span class="nf">IsEvenBool</span><span class="p">(</span><span class="n">number</span><span class="p">))</span>
+            <span class="k">return</span> <span class="nf">Ok</span><span class="p">();</span>
+
+        <span class="k">return</span> <span class="nf">BadRequest</span><span class="p">(</span><span class="s">"It's not even"</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="p">[</span><span class="n">HttpGet</span><span class="p">]</span>
+    <span class="p">[</span><span class="nf">Route</span><span class="p">(</span><span class="s">"Exception"</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="n">ActionResult</span> <span class="nf">IsEventException</span><span class="p">(</span><span class="kt">int</span> <span class="n">number</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">try</span>
+        <span class="p">{</span>
+            <span class="n">IsEven</span><span class="p">.</span><span class="nf">IsEvenException</span><span class="p">(</span><span class="n">number</span><span class="p">);</span>
+            <span class="k">return</span> <span class="nf">Ok</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="nf">BadRequest</span><span class="p">(</span><span class="n">ex</span><span class="p">.</span><span class="n">Message</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">public</span> <span class="k">class</span> <span class="nc">IsEven</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">IsEvenException</span><span class="p">(</span><span class="kt">int</span> <span class="n">number</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">!=</span> <span class="m">0</span><span class="p">)</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">Exception</span><span class="p">(</span><span class="s">"It's not even"</span><span class="p">);</span>
+    <span class="p">}</span>   
+
+    <span class="k">public</span> <span class="k">static</span> <span class="kt">bool</span> <span class="nf">IsEvenBool</span><span class="p">(</span><span class="kt">int</span> <span class="n">number</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">number</span> <span class="p">%</span> <span class="m">2</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span>
+            <span class="k">return</span> <span class="k">true</span><span class="p">;</span>
+
+        <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>E efetuando um CURL podemos verificar os tempos de respostas:</p>
+
+<p><img src="/assets/images/2022/02/dont-use-exception-02.jpg" alt="image" /></p>
+
+<p>Temos mais que o dobro do tempo de resposta, sendo um código extremamente simples.</p>
+
+<p>Então não use exceptions para administrar seus fluxos, você pode usar algum Notification Pattern, Tuples, <a href="https://github.com/altmann/FluentResults">Fluent Results</a> ou quem sabe até alguma estratégia funcional.</p>]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term="Exception" /><summary type="html"><![CDATA[Acho que a maioria da pessoas que trabalham com .NET a algum tempo ja deram o famoso “throw new Exception(“deu erro aqui”)”, quando comecei na area era bem comum você ver um código cheio de exceptions para tratar varios tipos de “erros”, quer dizer qualquer coisa que não era o caminho feliz mas isso atrapalha em muito o desempenho da aplicação. Vamos para o código Um dos primeiro códigos que fazemos é o famoso “verificar se é par”, bom vamos fazer o tratamento disto com exception em um ConsoleApp. public void IsEvenException() { try { if (number % 2 != 0) throw new Exception("It's not even"); } catch (Exception) { } } Podemos simplesmente retornar um bool tambem public bool IsEvenBool() { if (number % 2 == 0) return true; return false; } Benchmark E podemos rodar um Benchmark.net para testarmos e vermos como irá se comportar. class Program { static void Main(string[] args) { var summary = BenchmarkRunner.Run&lt;IsEven&gt;(); } } [MemoryDiagnoser] public class IsEven { [Params(2, 5)] public int number; [Benchmark] public void IsEvenException() { try { if (number % 2 != 0) throw new Exception("Is not even"); } catch (Exception) { } } [Benchmark] public bool IsEvenBool() { if (number % 2 == 0) return true; return false; } } Podemos ver que para o número 2, o par, não teve la grande mudança no tempo de execução, já no número impar quando a exception é lançada o tempo explodiu. Bom, não faz sentido usarmos exceptions para tratarmos o fluxo da nossa aplicação, afinal são exceções, se você está seguindo seu fluxo de trabalho não faz sentido usar exceptions, que para a galera mais antiga vai lembrar, são GOTO menos feios. ASP.NET Se mesmo assim eu não te convenci, vamos para uma aplicação ASP.NET core, com o mesmo código: [ApiController] [Route("[controller]")] public class IsEvenController : ControllerBase { [HttpGet] [Route("Bool")] public ActionResult IsEvenBool(int number) { if (IsEven.IsEvenBool(number)) return Ok(); return BadRequest("It's not even"); } [HttpGet] [Route("Exception")] public ActionResult IsEventException(int number) { try { IsEven.IsEvenException(number); return Ok(); } catch (Exception ex) { return BadRequest(ex.Message); } } } public class IsEven { public static void IsEvenException(int number) { if (number % 2 != 0) throw new Exception("It's not even"); } public static bool IsEvenBool(int number) { if (number % 2 == 0) return true; return false; } } E efetuando um CURL podemos verificar os tempos de respostas: Temos mais que o dobro do tempo de resposta, sendo um código extremamente simples. Então não use exceptions para administrar seus fluxos, você pode usar algum Notification Pattern, Tuples, Fluent Results ou quem sabe até alguma estratégia funcional.]]></summary></entry><entry><title type="html">Usando docker-compose pra facilitar seu desenvolvimento local</title><link href="https://www.baldini.io/2021/09/27/docker-compose-vs.html" rel="alternate" type="text/html" title="Usando docker-compose pra facilitar seu desenvolvimento local" /><published>2021-09-27T00:00:00-03:00</published><updated>2021-09-27T00:00:00-03:00</updated><id>https://www.baldini.io/2021/09/27/docker-compose-vs</id><content type="html" xml:base="https://www.baldini.io/2021/09/27/docker-compose-vs.html"><![CDATA[<p>Acredito que todo mundo já encontrou um projeto ou entrou em uma empresa, em que existiam tantas dependências para rodar o sistema, que você perde um dia inteiro só de instalação, fora a configuração, banco relacional, banco não relacional, cache, serviços, etc.</p>
+
+<p>E, às vezes, você precisa fazer somente uma modificação, em parte do sistema, mas precisa de um documento gigante no confluence pra ver como fazer toda a configuração. Porém podemos simplificar isso em nossos projetos, usando docker.</p>
+
+<p>Ai você pode pensar: “Ah, Guilherme, mas aqui na empresa nunca vão subir algo assim pra produção”. Mas eu nunca disse para usar em produção e sim pra facilitar a sua vida localmente.</p>
+
+<h2 id="docker">Docker</h2>
+
+<p>Mas primeiro, o que é <a href="https://www.docker.com/">Docker</a>?</p>
+
+<p>Docker é um sistema gerenciador de containers, que é parecido com virtualização, mas somente no conceito.</p>
+
+<h3 id="containers">Containers</h3>
+
+<p>Diferente de uma máquina virtual, containers são, basicamente, processos. Enquanto máquinas virtuais tem todo um sistema operacional por trás, containers não necessitam disso e contém o mínimo necessário para rodar a aplicação, que normalmente é única, enquanto em máquinas virtuais existem várias aplicações rodando. Além disso, containers utilizam recursos do Kernel local, diferente de máquinas virtuais.</p>
+
+<p>Dica: Caso vá rodar docker no windows, dê preferência por rodar ele em ambiente <a href="https://docs.microsoft.com/pt-br/windows/wsl/install-win10">WSL2</a> a performance é bem melhor.</p>
+
+<h3 id="subindo-nosso-primeiro-container">Subindo nosso primeiro container</h3>
+
+<p>Bom, vamos subir um container básico, depois de já instalado o docker em sua máquina, podemos executar o comando de “Hello World” para vermos nosso primeiro container rodando:</p>
+
+<script id="asciicast-kag8uK5nV6dcE3x97vpHTDrll" src="https://asciinema.org/a/kag8uK5nV6dcE3x97vpHTDrll.js" async=""></script>
+
+<p>Este comando sobe um container simples, de “Hello-world”, que escreve algumas coisas no console e fecha o processo, podemos ver que eu não tinha a imagem na minha máquina, então o docker fez o download no <a href="https://hub.docker.com/">Docker Hub</a>.</p>
+
+<p>Podemos subir uma imagem um pouco mais complexa, como a getting-started.
+PS. A partir de agora já terei feito o download das imagens para facilitar nos exemplos.</p>
+
+<script id="asciicast-rcT4oK6a5n1La2x0T85ClX0xC" src="https://asciinema.org/a/rcT4oK6a5n1La2x0T85ClX0xC.js" async=""></script>
+
+<p>Estou subindo a imagem e mapeando com o comando “-p 80:80” a porta 80 do container para a porta 80 do meu computador host, explicarei mais sobre portas a seguir, então se eu acessar <a href="http://localhost">http://localhost</a> no meu navegador, posso ver uma pagina web do docker:</p>
+
+<p><img src="/assets/images/2021/09/docker-compose-vs-01.jpg" alt="image" /></p>
+
+<h2 id="docker-compose">Docker compose</h2>
+
+<p>Beleza, então conseguimos subir aplicações sem precisar instala-las e de forma rápida, mas se eu tiver, por exemplo, um Redis, um MySQL e um RabbitMq, vou precisar executar toda vez um comando “docker run” pra cada um dos containers? E pra repassar isso para o time todo?</p>
+
+<p>Ai que entra o docker compose, que, nada mais é que uma ferramenta para definir um ou vários containers e subi-los de maneira simples.</p>
+
+<h3 id="images">Images</h3>
+
+<p>A imagem é um template de comandos, para nosso container subir corretamente, exatamente um passo-a-passo, que você não vai precisar fazer manualmente.</p>
+
+<p>Vamos montar nosso docker compose de exemplo com um Redis, RabbitMq e um MySQL, primeiro vamos atrás das imagens docker dessas aplicações. Assim como usamos a imagem <a href="https://hub.docker.com/_/hello-world">Hello World</a> e <a href="https://hub.docker.com/_/getting-started">Getting Started</a> devemos que encontrar as demais, para isso, vamos até o docker hub e fazemos uma pesquisa rápida pelas mesmas aplicações grandes e conhecidas, lá já tem suas imagens oficiais no docker hub e toda a sua documentação:</p>
+
+<p><a href="https://hub.docker.com/_/redis">Redis</a>
+<a href="https://hub.docker.com/_/mysql">MySQL</a>
+<a href="https://hub.docker.com/_/rabbitmq">RabbitMq</a></p>
+
+<h3 id="tags">Tags</h3>
+
+<p>Tags são as versões que você quer utilizar, sendo que existem diversos tipos, como versões específicas de um banco, versões do rabbit com e sem página de manutenção, ou até mesmo com versões diferentes do Kernel, com Alpine sendo menor ou com alguma outra pra ter mais ferramentas.</p>
+
+<p>No meu caso usarei a Latest do MySQL e Redis e a 3.8-management do RabbitMQ, todas pegas da documentação.</p>
+
+<h3 id="ports">Ports</h3>
+
+<p>Lembra que containers são contidos? Eles não são acessados normalmente e é preciso expor portas para isso, assim como expomos a porta 80 para o Getting-Started, seguindo a documentação do docker hub, podemos ver que teremos que usar as seguintes portas para as nossas aplicações:</p>
+
+<ul>
+  <li>Redis
+    <ul>
+      <li>6379</li>
+    </ul>
+  </li>
+  <li>MySQL
+    <ul>
+      <li>3306</li>
+    </ul>
+  </li>
+  <li>RabbitMq
+    <ul>
+      <li>5672 - Porta padrão do Rabbit</li>
+      <li>15672 - Porta do Management</li>
+    </ul>
+  </li>
+</ul>
+
+<p>Para ficar mais simples, mapearei as mesmas portas locais, então a porta 6379 do container será mapeada para a porta 6379 da minha máquina e assim por diante.</p>
+
+<h3 id="enviroments-variables">Enviroments Variables</h3>
+
+<p>Variáveis de ambiente, cada container segue um padrão e em nosso caso usaremos somente no MySQL para setar nossa senha, para o usuário root, no caso do rabbit vamos deixar ele setar as credenciais padrões, que são Guest@Guest e o redis sem credenciais.</p>
+
+<ul>
+  <li>MySql
+    <ul>
+      <li>MYSQL_ROOT_PASSWORD=MySecretPassword</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="outras-configurações">Outras configurações</h3>
+
+<p>Existem diversas configurações que podem ser encontradas nas configurações que não usaremos aqui no exemplo, algumas valem a pena ser citadas:</p>
+
+<h4 id="depends_on">Depends_on</h4>
+
+<p>Mostra que um container A tem dependência de container B e espera o container A subir para começar a subir o B, lembrando que, o container subir não quer dizer que um banco dentro dele está pronto para receber conexão.</p>
+
+<h4 id="volumes">Volumes</h4>
+
+<p>Mapeia uma pasta da máquina Host para o container, então caso você queira ter algum arquivo compartilhado da máquina host com o container é essa configuração que você usará, lembrando que quando você remove o container, todos os dados dentro dele somem, mas os arquivos compartilhados em volumes não.</p>
+
+<h4 id="network">Network</h4>
+
+<p>É possivel criar redes diferentes para comunicação entre containers, apesar de containers que estão no mesmo compose poderem se comunicar, pode ser necessário criar networks para comunicação entre containers em composes diferentes.</p>
+
+<h3 id="finalmente-montando-nosso-compose">Finalmente montando nosso compose</h3>
+
+<p>Agora com todos os dados, podemos montar nosso compose, ele segue um padrão Yaml e ficará assim:</p>
+
+<figure class="highlight"><pre><code class="language-yaml" data-lang="yaml"><span class="na">version</span><span class="pi">:</span> <span class="s1">'</span><span class="s">3.4'</span>
+
+<span class="na">services</span><span class="pi">:</span>
+  <span class="na">mysql</span><span class="pi">:</span>
+    <span class="na">image</span><span class="pi">:</span> <span class="s">mysql</span>
+    <span class="na">ports</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s2">"</span><span class="s">3306:3306"</span>
+    <span class="na">environment</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s">MYSQL_ROOT_PASSWORD=MySecretPassword</span>
+  
+  <span class="na">redis</span><span class="pi">:</span>
+    <span class="na">image</span><span class="pi">:</span> <span class="s">redis</span>
+    <span class="na">ports</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s2">"</span><span class="s">6379:6379"</span>
+  
+  <span class="na">rabbitmq</span><span class="pi">:</span>
+    <span class="na">image</span><span class="pi">:</span> <span class="s">rabbitmq:3.8-management</span>
+    <span class="na">ports</span><span class="pi">:</span>
+      <span class="pi">-</span> <span class="s2">"</span><span class="s">5672:5672"</span>
+      <span class="pi">-</span> <span class="s2">"</span><span class="s">15672:15672"</span></code></pre></figure>
+
+<p>Executando o comando abaixo conseguimos subir os containers e conecta-los de qualquer aplicação na sua máquina.</p>
+
+<script id="asciicast-IZPWFwyVSUxhsPcyub7BodoW5" src="https://asciinema.org/a/IZPWFwyVSUxhsPcyub7BodoW5.js" async=""></script>
+
+<p>Apertando Ctrl+C os containers param e voltam como novo.</p>
+
+<p>PS. Cuidado para não perder seus dados desse jeito, já que não está sendo mapeado nenhum volume nesse compose, seus dados serão apagados quando os containers forem deletados</p>
+
+<h2 id="visual-studio">Visual Studio</h2>
+
+<p>Agora como podemos usar isso com nossas aplicações .NET? Isso é simples.</p>
+
+<h3 id="sem-docker">Sem docker</h3>
+
+<p>Se a sua aplicação não está rodando no docker é só subir seu docker-compose pela linha de comando e conectar como se as aplicações estivessem local, algo assim para nosso exemplo:</p>
+
+<figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+    </span><span class="nl">"Redis"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"localhost:6380"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"RabbitMq"</span><span class="p">:</span><span class="w"> </span><span class="s2">"amqp://guest:guest@localhost"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"MySql"</span><span class="p">:</span><span class="s2">"Server=localhost;Database=myDataBase;Uid=root;Pwd=MySecretPassword;"</span><span class="w">
+</span><span class="p">}</span></code></pre></figure>
+
+<h3 id="com-docker">Com docker</h3>
+
+<p>Caso queira rodar sua aplicação no docker, junto com o visual studio, é só habilitar o “Container Orchestrator Support”, clicando com o botão direito no seu projeto, o Visual Studio criará seu docker-compose, que você poderá modificar a vontade.</p>
+
+<p><img src="/assets/images/2021/09/docker-compose-vs-02.jpg" alt="image" /></p>
+
+<p>As configurações mudam um pouquinho, agora você não vai acessar mais localhost e sim pelo nome do container, pois todos estão na mesma rede e compose, e sua aplicação não estará mais rodando na sua máquina, e sim em um container, ficando algo assim:</p>
+
+<figure class="highlight"><pre><code class="language-json" data-lang="json"><span class="p">{</span><span class="w">
+    </span><span class="nl">"Redis"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="s2">"redis:6380"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"RabbitMq"</span><span class="p">:</span><span class="w"> </span><span class="s2">"amqp://guest:guest@rabbitmq"</span><span class="p">,</span><span class="w">
+    </span><span class="nl">"MySql"</span><span class="p">:</span><span class="s2">"Server=mysql;Database=myDataBase;Uid=root;Pwd=MySecretPassword;"</span><span class="w">
+</span><span class="p">}</span></code></pre></figure>
+
+<p>E é só definir o projeto de startup como o docker-compose, tudo irá se conectar e conversar.</p>
+
+<p>Sem precisar instalar um monte de ferramentas, sem um monte de gente desenvolvendo no mesmo banco de Dev, e sem precisar gastar 2~3 dias com o Desenvolvedor novo para configurar tudo na máquina, instala o docker e dá um docker-compose up que ta resolvido.</p>]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term="docker" /><category term="docker-compose" /><category term="visualstudio" /><summary type="html"><![CDATA[Acredito que todo mundo já encontrou um projeto ou entrou em uma empresa, em que existiam tantas dependências para rodar o sistema, que você perde um dia inteiro só de instalação, fora a configuração, banco relacional, banco não relacional, cache, serviços, etc. E, às vezes, você precisa fazer somente uma modificação, em parte do sistema, mas precisa de um documento gigante no confluence pra ver como fazer toda a configuração. Porém podemos simplificar isso em nossos projetos, usando docker. Ai você pode pensar: “Ah, Guilherme, mas aqui na empresa nunca vão subir algo assim pra produção”. Mas eu nunca disse para usar em produção e sim pra facilitar a sua vida localmente. Docker Mas primeiro, o que é Docker? Docker é um sistema gerenciador de containers, que é parecido com virtualização, mas somente no conceito. Containers Diferente de uma máquina virtual, containers são, basicamente, processos. Enquanto máquinas virtuais tem todo um sistema operacional por trás, containers não necessitam disso e contém o mínimo necessário para rodar a aplicação, que normalmente é única, enquanto em máquinas virtuais existem várias aplicações rodando. Além disso, containers utilizam recursos do Kernel local, diferente de máquinas virtuais. Dica: Caso vá rodar docker no windows, dê preferência por rodar ele em ambiente WSL2 a performance é bem melhor. Subindo nosso primeiro container Bom, vamos subir um container básico, depois de já instalado o docker em sua máquina, podemos executar o comando de “Hello World” para vermos nosso primeiro container rodando: Este comando sobe um container simples, de “Hello-world”, que escreve algumas coisas no console e fecha o processo, podemos ver que eu não tinha a imagem na minha máquina, então o docker fez o download no Docker Hub. Podemos subir uma imagem um pouco mais complexa, como a getting-started. PS. A partir de agora já terei feito o download das imagens para facilitar nos exemplos. Estou subindo a imagem e mapeando com o comando “-p 80:80” a porta 80 do container para a porta 80 do meu computador host, explicarei mais sobre portas a seguir, então se eu acessar http://localhost no meu navegador, posso ver uma pagina web do docker: Docker compose Beleza, então conseguimos subir aplicações sem precisar instala-las e de forma rápida, mas se eu tiver, por exemplo, um Redis, um MySQL e um RabbitMq, vou precisar executar toda vez um comando “docker run” pra cada um dos containers? E pra repassar isso para o time todo? Ai que entra o docker compose, que, nada mais é que uma ferramenta para definir um ou vários containers e subi-los de maneira simples. Images A imagem é um template de comandos, para nosso container subir corretamente, exatamente um passo-a-passo, que você não vai precisar fazer manualmente. Vamos montar nosso docker compose de exemplo com um Redis, RabbitMq e um MySQL, primeiro vamos atrás das imagens docker dessas aplicações. Assim como usamos a imagem Hello World e Getting Started devemos que encontrar as demais, para isso, vamos até o docker hub e fazemos uma pesquisa rápida pelas mesmas aplicações grandes e conhecidas, lá já tem suas imagens oficiais no docker hub e toda a sua documentação: Redis MySQL RabbitMq Tags Tags são as versões que você quer utilizar, sendo que existem diversos tipos, como versões específicas de um banco, versões do rabbit com e sem página de manutenção, ou até mesmo com versões diferentes do Kernel, com Alpine sendo menor ou com alguma outra pra ter mais ferramentas. No meu caso usarei a Latest do MySQL e Redis e a 3.8-management do RabbitMQ, todas pegas da documentação. Ports Lembra que containers são contidos? Eles não são acessados normalmente e é preciso expor portas para isso, assim como expomos a porta 80 para o Getting-Started, seguindo a documentação do docker hub, podemos ver que teremos que usar as seguintes portas para as nossas aplicações: Redis 6379 MySQL 3306 RabbitMq 5672 - Porta padrão do Rabbit 15672 - Porta do Management Para ficar mais simples, mapearei as mesmas portas locais, então a porta 6379 do container será mapeada para a porta 6379 da minha máquina e assim por diante. Enviroments Variables Variáveis de ambiente, cada container segue um padrão e em nosso caso usaremos somente no MySQL para setar nossa senha, para o usuário root, no caso do rabbit vamos deixar ele setar as credenciais padrões, que são Guest@Guest e o redis sem credenciais. MySql MYSQL_ROOT_PASSWORD=MySecretPassword Outras configurações Existem diversas configurações que podem ser encontradas nas configurações que não usaremos aqui no exemplo, algumas valem a pena ser citadas: Depends_on Mostra que um container A tem dependência de container B e espera o container A subir para começar a subir o B, lembrando que, o container subir não quer dizer que um banco dentro dele está pronto para receber conexão. Volumes Mapeia uma pasta da máquina Host para o container, então caso você queira ter algum arquivo compartilhado da máquina host com o container é essa configuração que você usará, lembrando que quando você remove o container, todos os dados dentro dele somem, mas os arquivos compartilhados em volumes não. Network É possivel criar redes diferentes para comunicação entre containers, apesar de containers que estão no mesmo compose poderem se comunicar, pode ser necessário criar networks para comunicação entre containers em composes diferentes. Finalmente montando nosso compose Agora com todos os dados, podemos montar nosso compose, ele segue um padrão Yaml e ficará assim: version: '3.4' services: mysql: image: mysql ports: - "3306:3306" environment: - MYSQL_ROOT_PASSWORD=MySecretPassword redis: image: redis ports: - "6379:6379" rabbitmq: image: rabbitmq:3.8-management ports: - "5672:5672" - "15672:15672" Executando o comando abaixo conseguimos subir os containers e conecta-los de qualquer aplicação na sua máquina. Apertando Ctrl+C os containers param e voltam como novo. PS. Cuidado para não perder seus dados desse jeito, já que não está sendo mapeado nenhum volume nesse compose, seus dados serão apagados quando os containers forem deletados Visual Studio Agora como podemos usar isso com nossas aplicações .NET? Isso é simples. Sem docker Se a sua aplicação não está rodando no docker é só subir seu docker-compose pela linha de comando e conectar como se as aplicações estivessem local, algo assim para nosso exemplo: { "Redis" : "localhost:6380", "RabbitMq": "amqp://guest:guest@localhost", "MySql":"Server=localhost;Database=myDataBase;Uid=root;Pwd=MySecretPassword;" } Com docker Caso queira rodar sua aplicação no docker, junto com o visual studio, é só habilitar o “Container Orchestrator Support”, clicando com o botão direito no seu projeto, o Visual Studio criará seu docker-compose, que você poderá modificar a vontade. As configurações mudam um pouquinho, agora você não vai acessar mais localhost e sim pelo nome do container, pois todos estão na mesma rede e compose, e sua aplicação não estará mais rodando na sua máquina, e sim em um container, ficando algo assim: { "Redis" : "redis:6380", "RabbitMq": "amqp://guest:guest@rabbitmq", "MySql":"Server=mysql;Database=myDataBase;Uid=root;Pwd=MySecretPassword;" } E é só definir o projeto de startup como o docker-compose, tudo irá se conectar e conversar. Sem precisar instalar um monte de ferramentas, sem um monte de gente desenvolvendo no mesmo banco de Dev, e sem precisar gastar 2~3 dias com o Desenvolvedor novo para configurar tudo na máquina, instala o docker e dá um docker-compose up que ta resolvido.]]></summary></entry><entry><title type="html">Injeção de dependência</title><link href="https://www.baldini.io/2021/09/11/dependency-injection.html" rel="alternate" type="text/html" title="Injeção de dependência" /><published>2021-09-11T00:00:00-03:00</published><updated>2021-09-11T00:00:00-03:00</updated><id>https://www.baldini.io/2021/09/11/dependency-injection</id><content type="html" xml:base="https://www.baldini.io/2021/09/11/dependency-injection.html"><![CDATA[<p>A ideia da injeção de dependência é manter o desacoplamento entre módulos do sistema. Com a injeção, as classes de dependências não são instanciadas diretamente na classe utilizada, mas sim em uma estrutura responsável por isso, um container, isso nos ajuda a controlar essas instâncias de forma mais simples e performática, já que o .NET faz isto para nós, facilitando os testes unitários por trabalhar com interfaces, assim facilitando os mocks.</p>
+
+<p>Ou seja, onde antes fazíamos isso:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">class</span> <span class="nc">Foo</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="n">Bar</span> <span class="n">bar</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+    <span class="k">public</span> <span class="nf">Foo</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="k">this</span><span class="p">.</span><span class="n">bar</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Bar</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Agora faremos:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">class</span> <span class="nc">Foo</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="n">Bar</span> <span class="n">bar</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+    <span class="k">public</span> <span class="nf">Foo</span><span class="p">(</span><span class="n">Bar</span> <span class="n">Bar</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">this</span><span class="p">.</span><span class="n">bar</span> <span class="p">=</span> <span class="n">Bar</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Vamos explicar como funciona, por exemplo:</p>
+
+<h2 id="exemplos">Exemplos</h2>
+
+<p>Para exemplificar vamos criar nossa classe a ser injetada:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">class</span> <span class="nc">MyRepository</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="n">Guid</span> <span class="n">MyGuid</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+    <span class="k">public</span> <span class="kt">int</span> <span class="n">MyInt</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+    <span class="k">public</span> <span class="nf">MyRepository</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">MyGuid</span> <span class="p">=</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">PlusOne</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">MyInt</span> <span class="p">+=</span> <span class="m">1</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Iremos criar uma classe, que irá usar nosso ~repository~</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">class</span> <span class="nc">MyService</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="k">readonly</span> <span class="n">MyRepository</span> <span class="n">repository</span><span class="p">;</span>
+
+    <span class="k">public</span> <span class="nf">MyService</span><span class="p">(</span><span class="n">MyRepository</span> <span class="n">repository</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">this</span><span class="p">.</span><span class="n">repository</span> <span class="p">=</span> <span class="n">repository</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">PlusOne</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">repository</span><span class="p">.</span><span class="nf">PlusOne</span><span class="p">();</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>E nosso controller</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="p">[</span><span class="n">ApiController</span><span class="p">]</span>
+<span class="p">[</span><span class="nf">Route</span><span class="p">(</span><span class="s">"[controller]"</span><span class="p">)]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">MyController</span> <span class="p">:</span> <span class="n">ControllerBase</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="k">readonly</span> <span class="n">MyRepository</span> <span class="n">repository</span><span class="p">;</span>
+    <span class="k">private</span> <span class="k">readonly</span> <span class="n">MyService</span> <span class="n">myService</span><span class="p">;</span>
+
+    <span class="k">public</span> <span class="nf">MyController</span><span class="p">(</span><span class="n">MyRepository</span> <span class="n">repository</span><span class="p">,</span> <span class="n">MyService</span> <span class="n">myService</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">this</span><span class="p">.</span><span class="n">repository</span> <span class="p">=</span> <span class="n">repository</span><span class="p">;</span>
+        <span class="k">this</span><span class="p">.</span><span class="n">myService</span> <span class="p">=</span> <span class="n">myService</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="p">[</span><span class="n">HttpGet</span><span class="p">]</span>
+    <span class="k">public</span> <span class="kt">int</span> <span class="nf">Get</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">repository</span><span class="p">.</span><span class="nf">PlusOne</span><span class="p">();</span>
+        <span class="n">myService</span><span class="p">.</span><span class="nf">PlusOne</span><span class="p">();</span>
+        <span class="k">return</span> <span class="n">repository</span><span class="p">.</span><span class="n">MyInt</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span></code></pre></figure>
+
+<h3 id="scoped">Scoped</h3>
+
+<p>Classes scoped são instanciadas a cada novo escopo solicitado, no caso do ASP.NET Core, cada chamada HTTP recebida.</p>
+
+<p>São ótimas opções para classes que mantém estado, e como mantém uma instância por chamada, é mais difícil ter problemas de memória.  Claro que se o código dentro dela tiver problemas não terá muito para onde fugir.</p>
+
+<h4 id="code">Code</h4>
+
+<p>Vamos injetar nosso “Repository” e “Service” no nosso startup</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">ConfigureServices</span><span class="p">(</span><span class="n">IServiceCollection</span> <span class="n">services</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">MyRepository</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">MyService</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="nf">AddControllers</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Rodando o projeto e chamando nosso endpoint podemos perceber que a instância da classe MyRepository é compartilhada entre o MyController e o MyService, já que ambas estão sendo utilizadas dentro no mesmo escopo, uma chamada HTTP.</p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-01.jpg" alt="image" /></p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-02.jpg" alt="image" /></p>
+
+<p>Ambos os GUID são iguais e, como chamamos o método PluOne() 2 vezes, o nosso MyInt é 2.</p>
+
+<h3 id="transient">Transient</h3>
+
+<p>Classes Transient são instanciadas toda vez que são solicitadas.</p>
+
+<p>Bom para classes leves e sem estado, mas podem causar aumento do uso de recursos e problema de memória.</p>
+
+<h4 id="code-1">Code</h4>
+
+<p>Mudamos a injeção do nosso “Repository” para Transient</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">ConfigureServices</span><span class="p">(</span><span class="n">IServiceCollection</span> <span class="n">services</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddTransient</span><span class="p">&lt;</span><span class="n">MyRepository</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">MyService</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="nf">AddControllers</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><img src="/assets/images/2021/09/dependency-injection-03.jpg" alt="image" /></p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-04.jpg" alt="image" /></p>
+
+<p>Podemos observar que os GUID são diferentes para cada classe e o valor do MyInt não é mantido, pois dentro do transient cada vez que é solicitada, a classe de repository é instanciada novamente.</p>
+
+<h3 id="singleton">Singleton</h3>
+
+<p>Classes Singleton são instanciadas na primeira vez que são solicitadas, toda vez que for solicitada será enviada a mesma instância.</p>
+
+<h4 id="code-2">Code</h4>
+
+<p>Mudamos a injeção do nosso “Repository” para singleton</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">ConfigureServices</span><span class="p">(</span><span class="n">IServiceCollection</span> <span class="n">services</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">MyRepository</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">MyService</span><span class="p">&gt;();</span>
+    <span class="n">services</span><span class="p">.</span><span class="nf">AddControllers</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<p><img src="/assets/images/2021/09/dependency-injection-05.jpg" alt="image" /></p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-06.jpg" alt="image" /></p>
+
+<p>Aqui o comportamento parece igual ao Scoped, mesmo GUID e o MyInt subindo para 2, mas se efetuarmos uma nova chamada teremos algumas mudanças… ou não.</p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-07.jpg" alt="image" /></p>
+
+<p><img src="/assets/images/2021/09/dependency-injection-08.jpg" alt="image" /></p>
+
+<p>Mesmo GUID da chamada anterior e o MyInt não resetou, já que classes Injetadas como Singleton só tem 1 instancia durante todo o ciclo de vida da aplicação, o que pode ser muito bom para classes que podem ser reutilizáveis em diversos pontos ou muito ruim causando memory leaks ou quebra de contextos entre chamadas.</p>
+
+<h2 id="bonus">Bonus</h2>
+
+<h3 id="entity-framework-context">Entity Framework Context</h3>
+
+<p>Quando você está trabalhando com Banco de dados e injeção de dependências sempre fica a dúvida sobre qual usar, normalmente dentro da documentação da biblioteca que você está usando já vem indicando como é a melhor forma de cuidar da sua instância de conexão, mas caso esteja usando Entity Framework Core, já temos uma facilitada:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">ConfigureServices</span><span class="p">(</span><span class="n">IServiceCollection</span> <span class="n">services</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddDbContext</span><span class="p">&lt;</span><span class="n">MyContext</span><span class="p">&gt;(</span><span class="n">options</span> <span class="p">=&gt;</span> <span class="n">options</span><span class="p">.</span><span class="nf">UseSqlServer</span><span class="p">(</span><span class="n">connectionString</span><span class="p">));</span>
+    <span class="n">services</span><span class="p">.</span><span class="nf">AddControllers</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Com isso temos a injeção do nosso Context e podemos recebê-lo em nossas classes, mas podemos melhorar ainda mais:</p>
+
+<figure class="highlight"><pre><code class="language-c#" data-lang="c#"><span class="k">public</span> <span class="k">void</span> <span class="nf">ConfigureServices</span><span class="p">(</span><span class="n">IServiceCollection</span> <span class="n">services</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">services</span><span class="p">.</span><span class="n">AddDbContextPool</span><span class="p">&lt;</span><span class="n">MyContext</span><span class="p">&gt;(</span><span class="n">options</span> <span class="p">=&gt;</span> <span class="n">options</span><span class="p">.</span><span class="nf">UseSqlServer</span><span class="p">(</span><span class="n">connectionString</span><span class="p">));</span>
+    <span class="n">services</span><span class="p">.</span><span class="nf">AddControllers</span><span class="p">();</span>
+<span class="p">}</span></code></pre></figure>
+
+<p>Com o AddDbContextPool, habilita um pool de instâncias reutilizáveis do seu contexto, melhorando o desempenho e consumo de memória.</p>]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term=".NET" /><category term="dependency-injection" /><category term="ASPNET" /><summary type="html"><![CDATA[A ideia da injeção de dependência é manter o desacoplamento entre módulos do sistema. Com a injeção, as classes de dependências não são instanciadas diretamente na classe utilizada, mas sim em uma estrutura responsável por isso, um container, isso nos ajuda a controlar essas instâncias de forma mais simples e performática, já que o .NET faz isto para nós, facilitando os testes unitários por trabalhar com interfaces, assim facilitando os mocks. Ou seja, onde antes fazíamos isso: public class Foo { private Bar bar { get; set; } public Foo() { this.bar = new Bar(); } } Agora faremos: public class Foo { private Bar bar { get; set; } public Foo(Bar Bar) { this.bar = Bar; } } Vamos explicar como funciona, por exemplo: Exemplos Para exemplificar vamos criar nossa classe a ser injetada: public class MyRepository { public Guid MyGuid { get; set; } public int MyInt { get; set; } public MyRepository() { MyGuid = Guid.NewGuid(); } public void PlusOne() { MyInt += 1; } } Iremos criar uma classe, que irá usar nosso ~repository~ public class MyService { private readonly MyRepository repository; public MyService(MyRepository repository) { this.repository = repository; } public void PlusOne() { repository.PlusOne(); } } E nosso controller [ApiController] [Route("[controller]")] public class MyController : ControllerBase { private readonly MyRepository repository; private readonly MyService myService; public MyController(MyRepository repository, MyService myService) { this.repository = repository; this.myService = myService; } [HttpGet] public int Get() { repository.PlusOne(); myService.PlusOne(); return repository.MyInt; } } Scoped Classes scoped são instanciadas a cada novo escopo solicitado, no caso do ASP.NET Core, cada chamada HTTP recebida. São ótimas opções para classes que mantém estado, e como mantém uma instância por chamada, é mais difícil ter problemas de memória. Claro que se o código dentro dela tiver problemas não terá muito para onde fugir. Code Vamos injetar nosso “Repository” e “Service” no nosso startup public void ConfigureServices(IServiceCollection services) { services.AddScoped&lt;MyRepository&gt;(); services.AddScoped&lt;MyService&gt;(); services.AddControllers(); } Rodando o projeto e chamando nosso endpoint podemos perceber que a instância da classe MyRepository é compartilhada entre o MyController e o MyService, já que ambas estão sendo utilizadas dentro no mesmo escopo, uma chamada HTTP. Ambos os GUID são iguais e, como chamamos o método PluOne() 2 vezes, o nosso MyInt é 2. Transient Classes Transient são instanciadas toda vez que são solicitadas. Bom para classes leves e sem estado, mas podem causar aumento do uso de recursos e problema de memória. Code Mudamos a injeção do nosso “Repository” para Transient public void ConfigureServices(IServiceCollection services) { services.AddTransient&lt;MyRepository&gt;(); services.AddScoped&lt;MyService&gt;(); services.AddControllers(); } Podemos observar que os GUID são diferentes para cada classe e o valor do MyInt não é mantido, pois dentro do transient cada vez que é solicitada, a classe de repository é instanciada novamente. Singleton Classes Singleton são instanciadas na primeira vez que são solicitadas, toda vez que for solicitada será enviada a mesma instância. Code Mudamos a injeção do nosso “Repository” para singleton public void ConfigureServices(IServiceCollection services) { services.AddSingleton&lt;MyRepository&gt;(); services.AddScoped&lt;MyService&gt;(); services.AddControllers(); } Aqui o comportamento parece igual ao Scoped, mesmo GUID e o MyInt subindo para 2, mas se efetuarmos uma nova chamada teremos algumas mudanças… ou não. Mesmo GUID da chamada anterior e o MyInt não resetou, já que classes Injetadas como Singleton só tem 1 instancia durante todo o ciclo de vida da aplicação, o que pode ser muito bom para classes que podem ser reutilizáveis em diversos pontos ou muito ruim causando memory leaks ou quebra de contextos entre chamadas. Bonus Entity Framework Context Quando você está trabalhando com Banco de dados e injeção de dependências sempre fica a dúvida sobre qual usar, normalmente dentro da documentação da biblioteca que você está usando já vem indicando como é a melhor forma de cuidar da sua instância de conexão, mas caso esteja usando Entity Framework Core, já temos uma facilitada: public void ConfigureServices(IServiceCollection services) { services.AddDbContext&lt;MyContext&gt;(options =&gt; options.UseSqlServer(connectionString)); services.AddControllers(); } Com isso temos a injeção do nosso Context e podemos recebê-lo em nossas classes, mas podemos melhorar ainda mais: public void ConfigureServices(IServiceCollection services) { services.AddDbContextPool&lt;MyContext&gt;(options =&gt; options.UseSqlServer(connectionString)); services.AddControllers(); } Com o AddDbContextPool, habilita um pool de instâncias reutilizáveis do seu contexto, melhorando o desempenho e consumo de memória.]]></summary></entry><entry><title type="html">Hello World</title><link href="https://www.baldini.io/2021/09/10/hello-world.html" rel="alternate" type="text/html" title="Hello World" /><published>2021-09-10T00:00:00-03:00</published><updated>2021-09-10T00:00:00-03:00</updated><id>https://www.baldini.io/2021/09/10/hello-world</id><content type="html" xml:base="https://www.baldini.io/2021/09/10/hello-world.html"><![CDATA[<p>Olá mundo, sempre precisamos começar com os clichês ¯_(ツ)_/¯</p>
+
+<p>Me chamo Guilherme Baldini, tenho mais de 10 anos de experiencia escrevendo em umas línguas estranhas que no fim se tornam programas de computador, a ideia aqui é criar algo pra escrever o que estou aprendendo, coisas que acho interessante ou essenciais sobre tecnologia em geral.</p>
+
+<p>Minha experiencia e foco sempre foi em .NET mas você vai ver coisas sobre Unity, Raspberry pi, ML, Python, Docker e qualquer outra coisa que eu inventar :)</p>
+
+<!--more-->]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term="Hello" /><category term="World" /><summary type="html"><![CDATA[Olá mundo, sempre precisamos começar com os clichês ¯_(ツ)_/¯ Me chamo Guilherme Baldini, tenho mais de 10 anos de experiencia escrevendo em umas línguas estranhas que no fim se tornam programas de computador, a ideia aqui é criar algo pra escrever o que estou aprendendo, coisas que acho interessante ou essenciais sobre tecnologia em geral. Minha experiencia e foco sempre foi em .NET mas você vai ver coisas sobre Unity, Raspberry pi, ML, Python, Docker e qualquer outra coisa que eu inventar :)]]></summary></entry><entry><title type="html">Serialização com protobuf</title><link href="https://www.baldini.io/2019/05/30/protobuf-serialization.html" rel="alternate" type="text/html" title="Serialização com protobuf" /><published>2019-05-30T00:00:00-03:00</published><updated>2019-05-30T00:00:00-03:00</updated><id>https://www.baldini.io/2019/05/30/protobuf-serialization</id><content type="html" xml:base="https://www.baldini.io/2019/05/30/protobuf-serialization.html"><![CDATA[<p>Este é um post escrito em 2019, o original foi escrito no <a href="https://medium.com/@guibaldini/protobuf-dotnet-43f993ca9bdb">Medium</a> e passei para cá</p>
+
+<hr />
+
+<p><a href="https://developers.google.com/protocol-buffers/">Protocol Buffers</a> ou protobuf para os íntimos é um método de serialização de dados estruturados, criado pela Google para comunicação entre serviços internos, com ele você cria um arquivo de configuração, arquivo .proto, com sua estrutura de dados e importa na sua linguagem favorita e gerar suas classes de <em>Dados.</em></p>
+
+<script src="https://gist.github.com/Baldini/e28471a85240e1d7eabba22703cf1fbf.js"></script>
+
+<p>Nele definimos o tipo dos dados, as estruturas, obrigatoriedade, valores default, etc. Existe uma <a href="https://developers.google.com/protocol-buffers/docs/proto">documentação</a> completa mas um ponto que devemos prestar atenção é que existe um numero único para cada campo, ele deve ser único dentro da sua estrutura e serve para identificação do campo dentro da formatação binária.</p>
+
+<h2 id="então-ele-é-igual-json-e-xml">Então ele é igual Json e XML?</h2>
+
+<p>Sim e não, ele é sim um tipo de serialização mas ele é mais completo, mais simples e mais leve.</p>
+
+<p>Podemos importar o arquivo .Proto com um <a href="https://www.nuget.org/packages/protobuf-net.Protogen">utilitário</a>, feito com .NET para gerar nossa classe de <em>Data.</em></p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>dotnet tool install --global protobuf-net.Protogen --version 2.3.17
+</code></pre></div></div>
+
+<p>Após instalado podemos executar o comando abaixo para gerar nosso código com qualquer arquivo .proto.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>protogen &lt;File&gt; --csharp\_out=&lt;Output&gt;
+</code></pre></div></div>
+
+<p>Ele irá gerar o código abaixo
+<script src="https://gist.github.com/Baldini/8a9f8a3246a68f1c6ec0034ccb26ca58.js"></script></p>
+
+<p>Dica: Existe um <a href="https://protogen.marcgravell.com">site</a> que faz exatamente esse processo, caso não queira instalar a global tool</p>
+
+<p>Pra quem já utilizou <em>web services SOAP</em>, isso se parece muito com o arquivo que é gerado com <em>WSDL</em>, mas calma não morra do coração, não é isso, ele é só um arquivo de modelo, com isto você não consegue efetuar chamadas diretamente para o <em>webservice</em>, e quando você olha com mais atenção vê que não tão feio quanto o gerado pelo <em>WSDL.</em></p>
+
+<p>Com isso podemos utilizar o pacote <a href="https://www.nuget.org/packages/Google.Protobuf/">Google.Protobuf</a> e serializar de forma simples:
+<script src="https://gist.github.com/Baldini/f2bd46ecc33846d3f9da0fa19e5c456f.js"></script></p>
+
+<h2 id="protobuf-net">Protobuf-net</h2>
+
+<p>O <a href="https://www.nuget.org/packages/protobuf-net">protobuf-net</a> é uma library criada para facilitar a utilização de protobuf em Dot Net, ele suporta tanto classes com Data Annotations, bem parecido com o antigo JsonProperty, quanto o arquivo .proto, eu gosto mais dele pois as classes ficam mais legíveis do que com o pacote do google, para o exemplo irei usar Data Annotation pra facilitar a minha vida ¯\_(ツ)_/¯.</p>
+
+<p>Vou iniciar criando meus modelos, resolvi criar 2 tipos de modelos, um com somente uma propriedade do tipo Int, e outro com alguns campos a mais e o model mais simples, adiciono a Data Annotation <em>[ProtoContract]</em> nas classes e os <em>[ProtoMember()]</em> nas propriedades.</p>
+
+<script src="https://gist.github.com/Baldini/e74cd441f203fb97719d9d8ebe4110df.js"></script>
+
+<p>Como dar pra perceber, diferente de Json ou XML, não existe um nome para os campos, como por exemplo <em>[JsonProperty(“MyString”)]</em>, ao invés disso cada campo tem um inteiro como identificador, que não pode se repetir na sua classe, sem esse Annotation o campo não será serializado.</p>
+
+<p>Dica: ele não aceita números negativos e números menores ocupam menos espaço, não comece em 100000000 XD.</p>
+
+<h2 id="tá-é-só-isso">Tá, é só isso?</h2>
+
+<p>Não, mas vamos fazer o código de serialização em protobuf junto com um código de serialização em Json para vermos se realmente tem alguma diferença no desempenho, vou usar o <a href="https://github.com/dotnet/BenchmarkDotNet">Benchmark Dot Net</a> pra me auxiliar e o <a href="https://github.com/bchavez/Bogus">Bogus</a> para criar alguns dados fake.</p>
+
+<script src="https://gist.github.com/Baldini/928ea0bd66839fb4d0b4454f03b23150.js"></script>
+
+<p>Montei 4 tipos de testes, um para cada tipo de serialização, totalizando 8 sendo eles:</p>
+
+<ol>
+  <li>Serializar <em>SimpleClass;</em></li>
+  <li>Serializar <em>ComplexClass;</em></li>
+  <li>Serializar uma lista com 10 <em>ComplexClass;</em></li>
+  <li>Serializar uma lista com 100 <em>ComplexClass.</em></li>
+</ol>
+
+<p>Bom então vamos modificar nosso método <em>Main</em> e iniciar o teste</p>
+
+<script src="https://gist.github.com/Baldini/13c27f31d621f9cf693848e010ef1495.js"></script>
+
+<p>Fiz o <em>Build</em> da aplicação em <em>release</em> e executei-a por linha de comando, o resultado é este:</p>
+
+<p><img src="/assets/images/2019/05/2019-05-30-protobuf_01.png" alt="image" /></p>
+
+<p>Resultado do Benchmark efetuado</p>
+
+<p>Esse é um Benchmark bem simples mas podemos perceber diminuição alocação de memoria e tempo gasto na operação ,principalmente conforme ela vai aumentando a quantidade, são bem menores com o Protobuf-net, fiz alguns outros testes e usando a biblioteca do <a href="https://www.nuget.org/packages/Google.Protobuf/">Google</a> você consegue ganhar mais um pouco de desempenho.</p>
+
+<p>Existem alguns benchmarks mais completos na internet caso queira saber mais, por exemplo <a href="https://auth0.com/blog/beating-json-performance-with-protobuf/">este</a> e <a href="https://codeburst.io/json-vs-protocol-buffers-vs-flatbuffers-a4247f8bda6f">este</a> dentre outros</p>
+
+<p><img src="/assets/images/2019/05/2019-05-30-protobuf_02.jpg" alt="image" /></p>
+
+<h2 id="então-vou-usar-protobuf-pra-tudo">Então vou usar protobuf pra tudo?</h2>
+
+<p>Calma jovem padawan, não é para tudo que devemos usar, Json ainda é muito bom para os seguinte casos na minha opnião:</p>
+
+<ol>
+  <li>Você precisa que seus dados sejam legíveis para humanos;</li>
+  <li>Você vai integra com algum cliente (afinal seu cliente pode não fazer ideia do que é protobuf);</li>
+  <li>Seus dados são dinâmicos (não existe um schema);</li>
+  <li>Sua aplicação que irá consumir os dados é em Javascript ou um Browser.</li>
+</ol>
+
+<p>Mas para comunicação interna entre seus serviços, cache, filas e etc você pode usar protobuf sem problemas :D</p>
+
+<p><img src="/assets/images/2019/05/2019-05-30-protobuf_03.png" alt="image" /></p>
+
+<!--more-->]]></content><author><name>Guilherme Baldini</name><email>guilhermebaldini@hotmail.com</email></author><category term=".NET" /><category term="protobuf" /><category term="serialização" /><summary type="html"><![CDATA[Este é um post escrito em 2019, o original foi escrito no Medium e passei para cá Protocol Buffers ou protobuf para os íntimos é um método de serialização de dados estruturados, criado pela Google para comunicação entre serviços internos, com ele você cria um arquivo de configuração, arquivo .proto, com sua estrutura de dados e importa na sua linguagem favorita e gerar suas classes de Dados. Nele definimos o tipo dos dados, as estruturas, obrigatoriedade, valores default, etc. Existe uma documentação completa mas um ponto que devemos prestar atenção é que existe um numero único para cada campo, ele deve ser único dentro da sua estrutura e serve para identificação do campo dentro da formatação binária. Então ele é igual Json e XML? Sim e não, ele é sim um tipo de serialização mas ele é mais completo, mais simples e mais leve. Podemos importar o arquivo .Proto com um utilitário, feito com .NET para gerar nossa classe de Data. dotnet tool install --global protobuf-net.Protogen --version 2.3.17 Após instalado podemos executar o comando abaixo para gerar nosso código com qualquer arquivo .proto. protogen &lt;File&gt; --csharp\_out=&lt;Output&gt; Ele irá gerar o código abaixo Dica: Existe um site que faz exatamente esse processo, caso não queira instalar a global tool Pra quem já utilizou web services SOAP, isso se parece muito com o arquivo que é gerado com WSDL, mas calma não morra do coração, não é isso, ele é só um arquivo de modelo, com isto você não consegue efetuar chamadas diretamente para o webservice, e quando você olha com mais atenção vê que não tão feio quanto o gerado pelo WSDL. Com isso podemos utilizar o pacote Google.Protobuf e serializar de forma simples: Protobuf-net O protobuf-net é uma library criada para facilitar a utilização de protobuf em Dot Net, ele suporta tanto classes com Data Annotations, bem parecido com o antigo JsonProperty, quanto o arquivo .proto, eu gosto mais dele pois as classes ficam mais legíveis do que com o pacote do google, para o exemplo irei usar Data Annotation pra facilitar a minha vida ¯\_(ツ)_/¯. Vou iniciar criando meus modelos, resolvi criar 2 tipos de modelos, um com somente uma propriedade do tipo Int, e outro com alguns campos a mais e o model mais simples, adiciono a Data Annotation [ProtoContract] nas classes e os [ProtoMember()] nas propriedades. Como dar pra perceber, diferente de Json ou XML, não existe um nome para os campos, como por exemplo [JsonProperty(“MyString”)], ao invés disso cada campo tem um inteiro como identificador, que não pode se repetir na sua classe, sem esse Annotation o campo não será serializado. Dica: ele não aceita números negativos e números menores ocupam menos espaço, não comece em 100000000 XD. Tá, é só isso? Não, mas vamos fazer o código de serialização em protobuf junto com um código de serialização em Json para vermos se realmente tem alguma diferença no desempenho, vou usar o Benchmark Dot Net pra me auxiliar e o Bogus para criar alguns dados fake. Montei 4 tipos de testes, um para cada tipo de serialização, totalizando 8 sendo eles: Serializar SimpleClass; Serializar ComplexClass; Serializar uma lista com 10 ComplexClass; Serializar uma lista com 100 ComplexClass. Bom então vamos modificar nosso método Main e iniciar o teste Fiz o Build da aplicação em release e executei-a por linha de comando, o resultado é este: Resultado do Benchmark efetuado Esse é um Benchmark bem simples mas podemos perceber diminuição alocação de memoria e tempo gasto na operação ,principalmente conforme ela vai aumentando a quantidade, são bem menores com o Protobuf-net, fiz alguns outros testes e usando a biblioteca do Google você consegue ganhar mais um pouco de desempenho. Existem alguns benchmarks mais completos na internet caso queira saber mais, por exemplo este e este dentre outros Então vou usar protobuf pra tudo? Calma jovem padawan, não é para tudo que devemos usar, Json ainda é muito bom para os seguinte casos na minha opnião: Você precisa que seus dados sejam legíveis para humanos; Você vai integra com algum cliente (afinal seu cliente pode não fazer ideia do que é protobuf); Seus dados são dinâmicos (não existe um schema); Sua aplicação que irá consumir os dados é em Javascript ou um Browser. Mas para comunicação interna entre seus serviços, cache, filas e etc você pode usar protobuf sem problemas :D]]></summary></entry></feed>
